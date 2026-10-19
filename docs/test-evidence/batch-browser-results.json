@@ -1,0 +1,525 @@
+{
+  "browser": "155.0.8059.82",
+  "offline": true,
+  "externalRequests": 0,
+  "errors": [],
+  "insert": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Changed",
+      "review": false,
+      "title": "A 1  →  B 1 · Content and sequence agree"
+    },
+    {
+      "old": 2,
+      "new": 2,
+      "result": "Changed",
+      "review": false,
+      "title": "A 2  →  B 2 · Content and sequence agree"
+    },
+    {
+      "old": 3,
+      "new": 3,
+      "result": "Changed",
+      "review": false,
+      "title": "A 3  →  B 3 · Content and sequence agree"
+    },
+    {
+      "old": 4,
+      "new": 4,
+      "result": "Changed",
+      "review": false,
+      "title": "A 4  →  B 4 · Content and sequence agree"
+    },
+    {
+      "old": null,
+      "new": 5,
+      "result": "Added",
+      "review": false,
+      "title": "A —  →  B 5 · No sufficiently similar sheet in document order"
+    },
+    {
+      "old": 5,
+      "new": 6,
+      "result": "Changed",
+      "review": false,
+      "title": "A 5  →  B 6 · Content and sequence agree"
+    },
+    {
+      "old": 6,
+      "new": 7,
+      "result": "Changed",
+      "review": false,
+      "title": "A 6  →  B 7 · Content and sequence agree"
+    },
+    {
+      "old": 7,
+      "new": 8,
+      "result": "Changed",
+      "review": false,
+      "title": "A 7  →  B 8 · Content and sequence agree"
+    },
+    {
+      "old": 8,
+      "new": 9,
+      "result": "Changed",
+      "review": false,
+      "title": "A 8  →  B 9 · Content and sequence agree"
+    },
+    {
+      "old": 9,
+      "new": 10,
+      "result": "Changed",
+      "review": false,
+      "title": "A 9  →  B 10 · Content and sequence agree"
+    },
+    {
+      "old": 10,
+      "new": 11,
+      "result": "Changed",
+      "review": false,
+      "title": "A 10  →  B 11 · Content and sequence agree"
+    },
+    {
+      "old": 11,
+      "new": 12,
+      "result": "Changed",
+      "review": false,
+      "title": "A 11  →  B 12 · Content and sequence agree"
+    },
+    {
+      "old": 12,
+      "new": 13,
+      "result": "Changed",
+      "review": false,
+      "title": "A 12  →  B 13 · Content and sequence agree"
+    },
+    {
+      "old": 13,
+      "new": 14,
+      "result": "Changed",
+      "review": false,
+      "title": "A 13  →  B 14 · Content and sequence agree"
+    },
+    {
+      "old": 14,
+      "new": 15,
+      "result": "Changed",
+      "review": false,
+      "title": "A 14  →  B 15 · Content and sequence agree"
+    },
+    {
+      "old": 15,
+      "new": 16,
+      "result": "Changed",
+      "review": false,
+      "title": "A 15  →  B 16 · Content and sequence agree"
+    },
+    {
+      "old": 16,
+      "new": 17,
+      "result": "Changed",
+      "review": false,
+      "title": "A 16  →  B 17 · Content and sequence agree"
+    },
+    {
+      "old": 17,
+      "new": 18,
+      "result": "Changed",
+      "review": false,
+      "title": "A 17  →  B 18 · Content and sequence agree"
+    },
+    {
+      "old": 18,
+      "new": 19,
+      "result": "Changed",
+      "review": false,
+      "title": "A 18  →  B 19 · Content and sequence agree"
+    },
+    {
+      "old": 19,
+      "new": 20,
+      "result": "Changed",
+      "review": false,
+      "title": "A 19  →  B 20 · Content and sequence agree"
+    }
+  ],
+  "delete": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Changed",
+      "review": false,
+      "title": "A 1  →  B 1 · Content and sequence agree"
+    },
+    {
+      "old": 2,
+      "new": 2,
+      "result": "Changed",
+      "review": false,
+      "title": "A 2  →  B 2 · Content and sequence agree"
+    },
+    {
+      "old": 3,
+      "new": 3,
+      "result": "Changed",
+      "review": false,
+      "title": "A 3  →  B 3 · Content and sequence agree"
+    },
+    {
+      "old": 4,
+      "new": 4,
+      "result": "Changed",
+      "review": false,
+      "title": "A 4  →  B 4 · Content and sequence agree"
+    },
+    {
+      "old": 5,
+      "new": null,
+      "result": "Removed",
+      "review": false,
+      "title": "A 5  →  B — · No sufficiently similar sheet in document order"
+    },
+    {
+      "old": 6,
+      "new": 5,
+      "result": "Changed",
+      "review": false,
+      "title": "A 6  →  B 5 · Content and sequence agree"
+    },
+    {
+      "old": 7,
+      "new": 6,
+      "result": "Changed",
+      "review": false,
+      "title": "A 7  →  B 6 · Content and sequence agree"
+    },
+    {
+      "old": 8,
+      "new": 7,
+      "result": "Changed",
+      "review": false,
+      "title": "A 8  →  B 7 · Content and sequence agree"
+    },
+    {
+      "old": 9,
+      "new": 8,
+      "result": "Changed",
+      "review": false,
+      "title": "A 9  →  B 8 · Content and sequence agree"
+    },
+    {
+      "old": 10,
+      "new": 9,
+      "result": "Changed",
+      "review": false,
+      "title": "A 10  →  B 9 · Content and sequence agree"
+    },
+    {
+      "old": 11,
+      "new": 10,
+      "result": "Changed",
+      "review": false,
+      "title": "A 11  →  B 10 · Content and sequence agree"
+    },
+    {
+      "old": 12,
+      "new": 11,
+      "result": "Changed",
+      "review": false,
+      "title": "A 12  →  B 11 · Content and sequence agree"
+    },
+    {
+      "old": 13,
+      "new": 12,
+      "result": "Changed",
+      "review": false,
+      "title": "A 13  →  B 12 · Content and sequence agree"
+    },
+    {
+      "old": 14,
+      "new": 13,
+      "result": "Changed",
+      "review": false,
+      "title": "A 14  →  B 13 · Content and sequence agree"
+    },
+    {
+      "old": 15,
+      "new": 14,
+      "result": "Changed",
+      "review": false,
+      "title": "A 15  →  B 14 · Content and sequence agree"
+    },
+    {
+      "old": 16,
+      "new": 15,
+      "result": "Changed",
+      "review": false,
+      "title": "A 16  →  B 15 · Content and sequence agree"
+    },
+    {
+      "old": 17,
+      "new": 16,
+      "result": "Changed",
+      "review": false,
+      "title": "A 17  →  B 16 · Content and sequence agree"
+    },
+    {
+      "old": 18,
+      "new": 17,
+      "result": "Changed",
+      "review": false,
+      "title": "A 18  →  B 17 · Content and sequence agree"
+    },
+    {
+      "old": 19,
+      "new": 18,
+      "result": "Changed",
+      "review": false,
+      "title": "A 19  →  B 18 · Content and sequence agree"
+    }
+  ],
+  "mixed": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 1  →  B 1 · Content and sequence agree"
+    },
+    {
+      "old": 2,
+      "new": 2,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 2  →  B 2 · Content and sequence agree"
+    },
+    {
+      "old": 3,
+      "new": 3,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 3  →  B 3 · Content and sequence agree"
+    },
+    {
+      "old": 4,
+      "new": 4,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 4  →  B 4 · Content and sequence agree"
+    },
+    {
+      "old": null,
+      "new": 5,
+      "result": "Added",
+      "review": false,
+      "title": "A —  →  B 5 · No sufficiently similar sheet in document order"
+    },
+    {
+      "old": 5,
+      "new": 6,
+      "result": "Changed",
+      "review": false,
+      "title": "A 5  →  B 6 · Content and sequence agree"
+    },
+    {
+      "old": 6,
+      "new": 7,
+      "result": "Changed",
+      "review": false,
+      "title": "A 6  →  B 7 · Content and sequence agree"
+    },
+    {
+      "old": 7,
+      "new": 8,
+      "result": "Changed",
+      "review": false,
+      "title": "A 7  →  B 8 · Content and sequence agree"
+    },
+    {
+      "old": 8,
+      "new": 9,
+      "result": "Changed",
+      "review": false,
+      "title": "A 8  →  B 9 · Content and sequence agree"
+    },
+    {
+      "old": 9,
+      "new": 10,
+      "result": "Changed",
+      "review": false,
+      "title": "A 9  →  B 10 · Content and sequence agree"
+    },
+    {
+      "old": 10,
+      "new": 11,
+      "result": "Changed",
+      "review": false,
+      "title": "A 10  →  B 11 · Content and sequence agree"
+    },
+    {
+      "old": 11,
+      "new": 12,
+      "result": "Changed",
+      "review": false,
+      "title": "A 11  →  B 12 · Content and sequence agree"
+    },
+    {
+      "old": 12,
+      "new": null,
+      "result": "Removed",
+      "review": false,
+      "title": "A 12  →  B — · No sufficiently similar sheet in document order"
+    },
+    {
+      "old": 13,
+      "new": 13,
+      "result": "Changed",
+      "review": false,
+      "title": "A 13  →  B 13 · Content and sequence agree"
+    },
+    {
+      "old": 14,
+      "new": 14,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 14  →  B 14 · Content and sequence agree"
+    },
+    {
+      "old": 15,
+      "new": 15,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 15  →  B 15 · Content and sequence agree"
+    },
+    {
+      "old": 16,
+      "new": 16,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 16  →  B 16 · Content and sequence agree"
+    },
+    {
+      "old": 17,
+      "new": 17,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 17  →  B 17 · Content and sequence agree"
+    },
+    {
+      "old": 18,
+      "new": 18,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 18  →  B 18 · Content and sequence agree"
+    },
+    {
+      "old": 19,
+      "new": 19,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 19  →  B 19 · Content and sequence agree"
+    }
+  ],
+  "scanned": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 1  →  B 1 · Content and sequence agree"
+    },
+    {
+      "old": 2,
+      "new": 2,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 2  →  B 2 · Content and sequence agree"
+    },
+    {
+      "old": null,
+      "new": 3,
+      "result": "Added",
+      "review": true,
+      "title": "A —  →  B 3 · Possible alternative match; confirm added/removed status"
+    },
+    {
+      "old": 3,
+      "new": 4,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 3  →  B 4 · Content and sequence agree"
+    },
+    {
+      "old": 4,
+      "new": 5,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 4  →  B 5 · Content and sequence agree"
+    }
+  ],
+  "blank": [
+    {
+      "old": null,
+      "new": 1,
+      "result": "Added",
+      "review": true,
+      "title": "A —  →  B 1 · Blank or near-blank sheet; confirm its position"
+    },
+    {
+      "old": 1,
+      "new": 2,
+      "result": "Unchanged",
+      "review": true,
+      "title": "A 1  →  B 2 · Blank or near-blank sheet; confirm its position"
+    },
+    {
+      "old": 2,
+      "new": 3,
+      "result": "Unchanged",
+      "review": true,
+      "title": "A 2  →  B 3 · Blank or near-blank sheet; confirm its position"
+    }
+  ],
+  "pinned": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 1  →  B 1 · Match pinned by reviewer"
+    },
+    {
+      "old": null,
+      "new": 2,
+      "result": "Added",
+      "review": true,
+      "title": "A —  →  B 2 · Blank or near-blank sheet; confirm its position"
+    },
+    {
+      "old": 2,
+      "new": 3,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 2  →  B 3 · Match pinned by reviewer"
+    }
+  ],
+  "identical": [
+    {
+      "old": 1,
+      "new": 1,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 1  →  B 1 · Content and sequence agree"
+    },
+    {
+      "old": 2,
+      "new": 2,
+      "result": "Unchanged",
+      "review": false,
+      "title": "A 2  →  B 2 · Content and sequence agree"
+    }
+  ],
+  "cancelled": "Stopped while indexing. The whole-document comparison has not completed."
+}

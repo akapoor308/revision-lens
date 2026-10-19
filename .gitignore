@@ -1,0 +1,13 @@
+node_modules/
+batch-fixture-images/
+playwright-report/
+test-results/
+coverage/
+/*.png
+/*-results.json
+/export-test.*
+/batch-export.pdf
+/batch-map.csv
+npm-debug.log*
+.DS_Store
+Desktop.ini

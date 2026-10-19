@@ -1,0 +1,29 @@
+{
+  "browser": "155.0.8059.82",
+  "offline": true,
+  "externalRequests": 0,
+  "errors": [],
+  "noDemoFlow": true,
+  "collapsedSettings": true,
+  "tabs": [
+    "overlay",
+    "split",
+    "text"
+  ],
+  "splitHighlights": {
+    "red": 1561,
+    "blue": 4926
+  },
+  "splitNavigationPreserved": true,
+  "first": {
+    "status": "Whole-document comparison complete. 0 added, 0 removed, 1 matches to review.",
+    "summary": "8 visual regions · 1,561 original-only pixels · 4,926 revised-only pixels"
+  },
+  "reportText": "Extracted text from the selected page pair. Whitespace is normalized; no OCR or part-number matching is performed. Reordered rows can appear as removals and additions. Text changes are independent of visual ignore areas and sensitivity.\n\nAdded\n\nAssembly DEMO-1042 | Revision B | Fictional test data\n\nRemoved\n\nAssembly DEMO-1042 | Revision A | Fictional test data\n\nAdded\n\n10 DEMO-100 Support bracket 1 Steel Powder coat\n\nAdded\n\n20 DEMO-200 Hex bolt M12 6 Steel Zinc\n\nRemoved\n\n10 DEMO-100 Support bracket 1 Steel Zinc\n\nRemoved\n\n20 DEMO-200 Hex bolt M12 4 Steel Zinc\n\nAdded\n\n40 DEMO-400 Lock nut M12 6 Steel Zinc",
+  "identical": "0 visual regions · 0 original-only pixels · 0 revised-only pixels",
+  "suggestedShift": 0.99,
+  "excluded": "0 visual regions · 0 original-only pixels · 0 revised-only pixels",
+  "consoleMessages": [
+    "warning: Warning: Setting up fake worker."
+  ]
+}

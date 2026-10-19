@@ -1,0 +1,6 @@
+/* 0.3: progressive disclosure and explicit labels for highlighted split views. */
+.adjustments{border:0;padding:0;margin-top:22px}.adjustments summary{font-size:11px;color:#8b74a4}.adjustments[open] summary{margin-bottom:14px}.adjustments .row{margin-top:10px}
+#splitLabels{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 auto 8px;font-size:10px;font-weight:600;line-height:1.5}
+#splitLabels span{padding:8px 10px;border-radius:8px;background:#fff0f3;color:#aa3f62}
+#splitLabels span+span{background:#e8f7fb;color:#087891}
+@media(max-width:1000px){#splitLabels{font-size:9px;gap:6px}#splitLabels span{padding:6px}}

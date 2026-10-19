@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.zip binary
+dist/** -text linguist-generated=true
+test-fixtures/** linguist-generated=true
