@@ -4,7 +4,7 @@
 
 Revision Lens is a free, independent browser application for reviewing engineering drawings and part reports. Choose two PDFs, compare the whole stack, and follow the sheet map to the changes. The delivered HTML works offline without an installer, account, subscription or cloud service.
 
-[Download the latest release](https://github.com/akapoor308/revision-lens/releases/latest) · [User guide](docs/USER-GUIDE.md) · [How it works](docs/ARCHITECTURE.md) · [IT evaluation](docs/IT-EVALUATION.md)
+[Download the latest release](https://github.com/akapoor308/revision-lens/releases/latest) · [User guide](docs/USER-GUIDE.md) · [How it works](docs/ARCHITECTURE.md)
 
 ![Side-by-side PDF comparison with highlighted differences](docs/images/side-by-side.png)
 
@@ -47,7 +47,7 @@ Automatic pairing is heuristic. Blank, repeated, reordered or heavily revised sh
 
 PDFs are selected through the browser file picker and processed in browser memory. The app has no upload endpoint, analytics, CDN, account system, browser storage or service worker. A Content Security Policy blocks network connections. Downloading the release requires internet access; running the extracted app does not. See [Privacy and security](docs/PRIVACY-AND-SECURITY.md).
 
-This is evaluation software, not an engineering approval system. In particular:
+Review comparison results before engineering approval. Supported scope and limitations:
 
 - Annotations/comments and interactive-form changes are outside the supported comparison scope.
 - No OCR, CAD entity/intent recognition, logical table reconstruction, calibrated measurement or vector editing is provided.
@@ -85,7 +85,7 @@ See [Development](docs/DEVELOPMENT.md), [Architecture](docs/ARCHITECTURE.md), an
 ```text
 source/             Application, comparison engine, matcher, HTML and CSS
 dist/               Prebuilt standalone application and renderer license files
-docs/               User guide, architecture, privacy, IT pilot and validation
+docs/               User guide, architecture, privacy and validation
 test-fixtures/      Fictional PDFs used only by automated tests
 test-*.mjs          Pixel, matching and offline browser tests
 build.mjs           Bundles renderer, worker and binary assets into the HTML
@@ -97,4 +97,4 @@ licenses/           Third-party license copies
 
 Custom application code is [MIT licensed](LICENSE). Bundled third-party components retain their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and `licenses/`. There is no application license fee. Review, maintenance and any internal hosting can still cost company time or money.
 
-Revision Lens was independently implemented. It is not Bluebeam Revu, does not include Bluebeam source/binaries, and is not affiliated with or endorsed by Bluebeam. See [the changelog](CHANGELOG.md) for version history.
+Revision Lens was independently implemented. See [the changelog](CHANGELOG.md) for version history.

@@ -2,7 +2,9 @@
 
 Date: 19 October 2026. All documents were fictional; no proprietary drawings/reports were supplied or accessed.
 
-Standalone HTML SHA-256: 701998e538a6b0f930cbbeb1801685e05f369421037f630597b900b7225aafef
+Standalone HTML SHA-256: bdb7c74c224e072c74e700bef898dce72db0f5c30f3a4962b26defdf50dd28a5
+
+The distribution wording was cleaned up after the initial checks. The rebuilt HTML passed the Chrome interface regression again with networking disabled, zero external requests and zero page errors. Comparison logic is unchanged.
 
 ## Completed local checks
 
@@ -24,4 +26,4 @@ The split-view screenshot and empty-state layout were inspected. Selected/export
 
 The optional workflow template in docs/ci-template.yml builds and runs the unit and offline browser suites on committed fictional fixtures once enabled by a maintainer. No hosted CI run was performed for this release; the results above are local checks.
 
-No production speed benchmark, memory profile on large drawings, corporate managed-browser trial, security certification, OCR validation, annotation comparison or proprietary-document validation was performed. These checks do not establish general matching accuracy or detection of every engineering change. Use the [IT pilot criteria](IT-EVALUATION.md) before operational adoption.
+No production speed benchmark, memory profile on large drawings, corporate managed-browser trial, security certification, OCR validation, annotation comparison or proprietary-document validation was performed. These checks do not establish general matching accuracy or detection of every engineering change.

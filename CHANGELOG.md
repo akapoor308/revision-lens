@@ -8,7 +8,7 @@
 - Highlight original-only pixels red on the left and revised-only pixels blue on the right in side-by-side view; show corresponding region outlines in both panes.
 - Preserve side-by-side mode while navigating change regions.
 - Add pane labels, clear split-view render caches when results change, and collapse controls when a session is cleared.
-- Publish source, architecture/privacy/user/IT documentation, pinned build dependencies and offline browser regression tests.
+- Publish source, architecture/privacy/user documentation, pinned build dependencies and offline browser regression tests.
 
 ## 0.2.0
 
