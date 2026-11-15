@@ -2,78 +2,88 @@
 
 ## Compare a document stack
 
-Open the extracted `Revision Lens.html` in a current desktop Chrome or Edge browser. Select the original PDF and revised PDF using the two file cards. Choose a render quality, then select **Compare all sheets**.
+Open `Revision Lens.html` in a current desktop Chrome or Edge. Drop your original PDF and revised PDF onto the two cards on the left — or drop both anywhere on the page, and the first one becomes the original — then select **Compare all sheets**.
 
-The app first indexes every page, then matches the two stacks, then compares each mapped pair or unmatched sheet. Progress is shown throughout. You do not need to select the page numbers one by one.
+The app indexes every page, matches the two stacks, then compares each pair in turn. You never pick page numbers by hand. **⇅ Swap original and revised** exchanges the two sides if you loaded them the wrong way round.
 
-The map accounts for insertions and removals, including simultaneous insertion/deletion when both PDFs have the same total page count. Automatic matching preserves order; it does not reconstruct reports that reflow across page boundaries.
+Matching accounts for insertions and removals, including both at once when the two PDFs have the same total page count. It preserves page order, so it will not reconstruct a report that reflows across page boundaries.
 
 ## Read the sheet map
 
-`A 5 → B 6` means original page 5 is paired with revised page 6. `A — → B 5` means a proposed added sheet; `A 5 → B —` means a proposed removed sheet. Click a row to open its comparison.
+`A 5 → B 6` means original page 5 is paired with revised page 6. `A — → B 5` is a proposed added sheet, `A 5 → B —` a proposed removed sheet. Click a row to open its comparison, or step through rows with <kbd>[</kbd> and <kbd>]</kbd>.
 
 | Label | Meaning |
 |---|---|
-| Changed | At least one changed pixel or extracted-text change was detected at that row's settings. |
-| No differences | No changed pixels or extracted-line changes at those settings. This is not engineering certification. |
-| Added / Removed | A sheet has no sufficiently similar counterpart in document order. Check any uncertainty flag. |
-| Pending | The row has not been compared, for example after stopping a run. |
-| Error | The row could not be compared. A complete comparison export is unavailable until all rows succeed. |
-| Check match | The pairing/unmatched status needs review. Repeated and blank pages are especially ambiguous. |
+| Changed | At least one changed pixel or extracted-text change at this row's settings. The row also shows how many regions and text changes. |
+| No differences | Nothing changed at these settings. |
+| Added / Removed | No sufficiently similar counterpart in document order. |
+| Pending | Not compared yet, for example after stopping a run. |
+| Error | Could not be compared. The whole-document PDF export stays disabled until every row succeeds. |
+| Check match | The pairing needs your eye. Repeated and blank pages are the usual causes. |
 
-The map can be filtered by result or match-review flag. Top counters show matched pairs, additions, removals and matches needing review. Similarity scores are heuristic scores, not probabilities.
+Use the dropdown to filter the map, for example to **Changed** or **Review matches**. The counters at the top show matched pairs, additions, removals and matches needing review. Similarity percentages are scores, not probabilities.
 
-Numbering/revision text is normalized for page matching only. A correctly matched sheet can still be marked Changed because its page number or total-page count changed. These changes are not silently hidden from review.
+Page numbers and revision letters are ignored when deciding which sheets correspond, but they are **not** hidden from the comparison itself — a correctly matched sheet can still read as Changed because its page number changed.
 
 ## Review the differences
 
-**Overlay** places both revisions on one canvas. Original-only pixels are red; revised-only pixels are blue. Shared/within-tolerance content is grey. Amber boxes group nearby changed pixels; a group does not necessarily represent one engineering change.
+**Overlay** (<kbd>1</kbd>) puts both revisions on one canvas. Original-only pixels are red, revised-only pixels blue, shared content grey. Amber boxes group nearby changed pixels; <kbd>n</kbd> and <kbd>p</kbd> jump between them. A box is a place to look, not necessarily one change.
 
-**Side by side** shows the original on the left and the aligned revision on the right. Original-only pixels are highlighted red on the left, revised-only pixels blue on the right. Corresponding region boxes appear in both panes, even if content exists on only one side, to help locate the relevant area. Unchanged source content keeps its source appearance. Use zoom for fine detail; fit-width shrinks both pages to fit the workspace. The two sheets share vertical position/geometry. Up/down change navigation stays in side-by-side view.
+**Side by side** (<kbd>2</kbd>) shows the original on the left and the aligned revision on the right, each highlighting only its own changes, so neither pane invents content the other has. Matching region boxes appear in both panes. The two sheets share vertical position, and region navigation stays in this view.
 
-**Text changes** lists whitespace-normalized extracted-line additions and removals. A changed row can appear as one removed line and one added line. Reordering can also create additions/removals. Scanned or outlined text may have no extractable content; no OCR is performed. Visual ignored areas and thresholds do not suppress the text comparison.
+**Text changes** (<kbd>3</kbd>) lists added and removed extracted lines with whitespace normalized. An edited line appears as one removal plus one addition, and reordering shows up the same way. Scanned or outlined text may yield nothing — there is no OCR. Ignored areas and the sensitivity settings do not affect this view.
 
 ## Correct an uncertain match
 
-Expand **Manual pairing & match corrections**. Choose the real original and revised page, then select **Pin this match & rematch all**. The full stack is matched and compared again around the confirmed pair. Multiple pins can establish positions among identical sheets.
+Expand **Manual pairing & match corrections**, choose the real original and revised page, then select **Pin this match & rematch all**. The stack is matched and compared again around the pair you confirmed, and pins that conflict with the new one are replaced automatically. Several pins can fix the order among identical sheets.
 
-Pins must be unique and preserve order. Conflicts are rejected; clear conflicting pins and try again. A pin confirms the correspondence, not the engineering correctness of either sheet. **Clear pinned matches** rematches without the pins.
+Pins stay one-to-one and in page order. A pin confirms which sheets correspond — it says nothing about whether either sheet is correct. **Clear pinned matches** rematches without them.
 
-**Compare this pair** is available for ad hoc inspection. Select “No sheet” on one side to inspect a whole sheet manually. Manual comparisons outside the map do not alter its saved automatic mapping.
+**Compare this pair** is there for ad hoc checks. Pick “No sheet” on one side to inspect a single sheet on its own. Manual comparisons do not change the saved automatic map.
 
 ## Align & Filter
 
-This section starts collapsed. Expand it only when a selected comparison needs adjustment.
+This section starts collapsed; open it when one comparison needs adjusting.
 
-- **X/Y shift:** translation of revised page B in PDF points; 72 pt = 1 inch. Positive X moves right; positive Y moves down.
-- **Rotation:** clockwise around revised page B's centre.
-- **Scale:** relative to B's original PDF scale. Different page sizes are not silently made equivalent.
-- **Suggest shift:** a translation suggestion from downsampled linework. Rotation/scale are retained. Inspect the result and reset if worse.
-- **Difference threshold:** larger values suppress lighter pixel differences.
-- **Line-edge tolerance:** 1–2 pixels suppress tiny displacements and antialiasing, but may hide real small changes. Use 0 pixels and adequate quality for sensitive review.
-- **Ignore an area:** turns on rectangle selection in Overlay view. Draw rectangles over dates/title blocks if appropriate. Ignored areas affect visual comparison only and are outlined in exports.
+- **X/Y shift** — moves revised page B, in PDF points (72 pt = 1 inch). Positive X moves right, positive Y moves down.
+- **Rotation** — clockwise, around B's centre.
+- **Scale** — relative to B's own PDF scale. Different page sizes are never silently equalized.
+- **Suggest shift** — estimates translation from downsampled linework, keeping rotation and scale. Check the result; **Reset alignment** undoes it.
+- **Difference threshold** — higher values ignore fainter differences.
+- **Line-edge tolerance** — 1–2 px absorbs antialiasing and hairline shifts, but can also hide a genuinely small change. Use 0 px with a higher render quality for a careful review.
+- **Ignore an area** — switches on rectangle drawing in Overlay view, for dates or title blocks. Ignored areas affect the visual comparison only and are outlined in exports.
 
-Settings and exclusions are saved per mapped row. Revisiting that row restores them. Changing the selected row's alignment/filter values updates its result. Changing render quality rerenders the selected row. **Compare all sheets** applies current quality/threshold/tolerance throughout the stack while retaining saved alignment/exclusions for pairs that still match.
+Each mapped row remembers its own alignment and ignored areas, and gets them back when you return to it. Changing render quality re-renders the selected row. **Compare all sheets** applies the current quality, threshold and tolerance across the stack while keeping saved alignment for pairs that still match.
 
-Default quality is 144 dpi, with 100 and 200 dpi options. The 12-megapixel limit may reduce actual dpi for large drawings; the footer reports the actual value. Low quality can hide small dimensions/symbols.
+Default quality is 144 dpi, with 100 and 200 dpi options. The 12-megapixel ceiling can reduce the actual dpi on very large sheets; the footer reports what was used. Low quality can hide small dimensions and symbols.
 
 ## Export results
 
 | Button | Scope |
 |---|---|
-| Overlay PDF / PNG | Selected comparison with file/page identifiers, settings, grouped regions and a match-review warning when needed. |
+| Overlay PDF / PNG | The selected comparison, with file and page identifiers, the settings used, region outlines and a review warning when one applies. |
 | Text changes CSV | Extracted-line changes for the selected comparison. |
-| Whole-document summary CSV | Every map row, mapping/status/review reason, similarity, change counts, dpi and run-complete indicator. |
-| All sheets comparison PDF | One rasterized comparison page per map row, including added/removed sheets, using saved row settings. |
+| Whole-document summary CSV | Every map row: pairing, status, review reason, similarity, change counts, dpi and whether the run completed. |
+| All sheets comparison PDF | One page per map row, including added and removed sheets, using each row's saved settings. |
 
-The full PDF button is enabled only when every row has compared successfully. Review flags remain visible in the export. The image-data limit is 200 MB. PDF output is rasterized, not vector/layered, and is not calibrated for manufacturing measurements. Original files are not modified. CSV strings are quoted and formula-like prefixes are neutralized.
+Export filenames include the pages they cover, so saving several does not overwrite anything. The whole-document PDF button is enabled only when every row compared successfully. PDF output is rasterized, not vector or layered, and is not calibrated for measurement. Your original files are never modified. CSV text is quoted and formula-like prefixes are neutralized so a spreadsheet cannot execute them.
 
 ## Stop or clear
 
-**Stop after current sheet** acts between indexing, comparison or export steps. A long render/comparison can finish before the stop is handled. Pending rows remain explicit and a stopped comparison is incomplete. Stopping a full-PDF export does not save a partial PDF.
+**Stop after current sheet** takes effect between indexing, comparison or export steps; a single long render finishes first. Pending rows stay marked Pending, and stopping an export saves nothing partial.
 
-**Clear session** disposes of loaded PDF tasks, clears the map/pins/settings and collapses the controls. Close/reload the tab to release remaining browser-managed resources. This is not a secure memory-erasure promise.
+**Clear session** releases the loaded PDFs, the map, the pins and the settings. Close or reload the tab to release whatever the browser still holds.
+
+## Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | Overlay, side by side, text changes |
+| <kbd>n</kbd> / <kbd>p</kbd> | Next / previous change region |
+| <kbd>[</kbd> / <kbd>]</kbd> | Previous / next sheet in the map |
+
+Shortcuts are ignored while a text field or dropdown has focus.
 
 ## Limits
 
-150 MB per input PDF; 250,000 candidate page pairs; 12 megapixels per rendered page; 1,500 extracted text lines per page; 200 MB of image data per full-PDF export. Split exceptionally large stacks. Only local, unencrypted PDFs are supported. Annotations/comments and interactive-form changes are outside scope. Review small engineering changes and ambiguous page mappings manually.
+150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per whole-document PDF export. Split an exceptionally large stack. Only local, unencrypted PDFs are supported — a password-protected file is reported as such. Annotations, comments and interactive form fields are outside the comparison.

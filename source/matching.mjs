@@ -1,4 +1,7 @@
 // Independent page matching. MIT license; see LICENSE.txt.
+
+// One documented ceiling, shared by the user interface and the matcher.
+export const MAX_PAGE_PAIRS=250000;
 export function matchingTokens(lines) {
   return new Set(lines.join(' ').toLowerCase()
     .replace(/\b(?:page|sheet|sht)\s*[:#-]?\s*\d+\s*(?:(?:of|\/)\s*\d+)?\b/g,' ')
@@ -6,18 +9,38 @@ export function matchingTokens(lines) {
     .match(/[\p{L}\p{N}][\p{L}\p{N}_.\/-]*/gu)||[]);
 }
 
-export function similarityMatrix(oldPages,newPages) {
-  const pages=[...oldPages,...newPages],df=new Map();
+// Token weights, per-page weight totals and visual norms are computed once, so a
+// page pair costs one pass over the smaller token set instead of building a union
+// set per pair. This keeps large stacks responsive.
+function prepare(pages) {
+  const df=new Map();
   for(const p of pages) for(const t of p.tokens)df.set(t,(df.get(t)||0)+1);
-  const weight=t=>Math.pow(Math.log(1+pages.length/(df.get(t)||1)),2);
-  return oldPages.map(a=>newPages.map(b=>{
-    let intersection=0,union=0;
-    for(const t of new Set([...a.tokens,...b.tokens])){const w=weight(t);union+=w;if(a.tokens.has(t)&&b.tokens.has(t))intersection+=w;}
-    let dot=0,aa=0,bb=0;
-    for(let p=0;p<a.visual.length;p++){dot+=a.visual[p]*b.visual[p];aa+=a.visual[p]**2;bb+=b.visual[p]**2;}
-    const visual=aa&&bb?Math.max(0,Math.min(1,dot/Math.sqrt(aa*bb))):(!aa&&!bb?1:0);
-    const aspect=Math.min(a.aspect,b.aspect)/Math.max(a.aspect,b.aspect);
-    const bothText=a.tokens.size>=5&&b.tokens.size>=5;
+  const weights=new Map();
+  for(const [token,count] of df)weights.set(token,Math.pow(Math.log(1+pages.length/count),2));
+  const prepared=pages.map(page=>{
+    let total=0;
+    for(const t of page.tokens)total+=weights.get(t);
+    let square=0;
+    for(let i=0;i<page.visual.length;i++)square+=page.visual[i]**2;
+    return {page,total,norm:Math.sqrt(square)};
+  });
+  return {weights,prepared};
+}
+
+export function similarityMatrix(oldPages,newPages) {
+  const {weights,prepared}=prepare([...oldPages,...newPages]);
+  const left=prepared.slice(0,oldPages.length),right=prepared.slice(oldPages.length);
+  return left.map(a=>right.map(b=>{
+    const small=a.page.tokens.size<=b.page.tokens.size?a.page.tokens:b.page.tokens;
+    const large=small===a.page.tokens?b.page.tokens:a.page.tokens;
+    let intersection=0;
+    for(const t of small)if(large.has(t))intersection+=weights.get(t);
+    const union=Math.max(intersection,a.total+b.total-intersection);
+    let dot=0;const av=a.page.visual,bv=b.page.visual;
+    for(let p=0;p<av.length;p++)dot+=av[p]*bv[p];
+    const visual=a.norm&&b.norm?Math.max(0,Math.min(1,dot/(a.norm*b.norm))):(!a.norm&&!b.norm?1:0);
+    const aspect=Math.min(a.page.aspect,b.page.aspect)/Math.max(a.page.aspect,b.page.aspect);
+    const bothText=a.page.tokens.size>=5&&b.page.tokens.size>=5;
     return Math.max(0,Math.min(1,(bothText?.68*(union?intersection/union:1)+.32*visual:visual)*aspect));
   }));
 }
@@ -35,7 +58,7 @@ export function validatePins(pins,oldCount,newCount) {
 // Global, order-preserving alignment with explicit gaps. Page numbers are output,
 // never the content identity. Weak pairs are left unmatched instead of forced.
 export function alignPageScores(scores,oldCount,newCount,{minimum=.56,pins=[]}={}) {
-  if((oldCount+1)*(newCount+1)>4000000)throw new Error('This prototype supports at most 4 million page-pair candidates. Split very large documents first.');
+  if(oldCount*newCount>MAX_PAGE_PAIRS)throw new Error('Revision Lens compares up to '+MAX_PAGE_PAIRS.toLocaleString()+' page-pair candidates at a time. Split very large documents first.');
   const anchors=validatePins(pins,oldCount,newCount),out=[];
   function segment(a0,a1,b0,b1){
     const n=a1-a0,m=b1-b0,cols=m+1;

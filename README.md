@@ -1,66 +1,67 @@
 # Revision Lens
 
-**Compare PDF revisions locally, including inserted and removed drawing sheets.**
+**Compare two PDF revisions on your own computer — including sheets that were added or removed.**
 
-Revision Lens is a free, independent browser application for reviewing engineering drawings and part reports. Choose two PDFs, compare the whole stack, and follow the sheet map to the changes. The delivered HTML works offline without an installer, account, subscription or cloud service.
+Revision Lens is a free, single-file browser app for reviewing drawing sets and part reports. Open two PDFs, compare the whole stack in one click, and follow the sheet map to every change. It works offline, with no installer, account or cloud service.
 
-[Download the latest release](https://github.com/akapoor308/revision-lens/releases/latest) · [User guide](docs/USER-GUIDE.md) · [How it works](docs/ARCHITECTURE.md)
+[Download the latest release](https://github.com/akapoor308/revision-lens/releases/latest) · [User guide](docs/USER-GUIDE.md) · [How it works](docs/ARCHITECTURE.md) · [Privacy](docs/PRIVACY.md)
 
 ![Side-by-side PDF comparison with highlighted differences](docs/images/side-by-side.png)
 
 ## Start using it
 
-1. Download and extract the release ZIP. Keep the license and documentation files with it.
-2. Open **Revision Lens.html** in a current desktop Chrome or Edge browser.
-3. Choose the original PDF and the revised PDF, then select **Compare all sheets**.
-4. Select a row in **The sheet map**. Review any **Check match** flags before relying on the pairing.
+1. Download and extract the release ZIP.
+2. Open **Revision Lens.html** in a current desktop Chrome or Edge.
+3. Drop your original and revised PDFs on the page — or click the two cards to choose them — then select **Compare all sheets**.
+4. Click a row in **The sheet map**. Rows marked **Check match** are the ones worth a second look.
 
-No installation or internet connection is needed to use the extracted application. Your organisation may still restrict local HTML or JavaScript. Source PDFs are not modified. There is no demo flow or sample-PDF payload in the application; fictional PDFs in `test-fixtures/` are development tests only.
+That is the whole workflow. You never select page numbers by hand, and you can disconnect from the internet first — the extracted app needs no network access at any point.
 
-## Features
+## What it does
 
 | Feature | Behaviour |
 |---|---|
-| Whole-document comparison | Indexes and compares every sheet, rather than requiring manual page-number selection. |
-| Automatic page matching | Uses normalized text, visual fingerprints and document order. Insertions/removals receive explicit sheet-map rows. |
-| Coloured overlay | Red marks original-only pixels; blue marks revised-only pixels. |
-| Highlighted side-by-side view | Original-only changes appear in red on the left; revised-only changes appear in blue on the right. Region boxes appear in both panes. |
-| Text changes | Lists extracted-line additions/removals for the selected sheet pair. |
-| Match corrections | Flagged pairings can be inspected and pinned, then the stack rematched around the pins. |
-| Alignment and filters | Shift, rotate, scale, suggest translation, adjust sensitivity and ignore rectangles. Controls start collapsed. |
-| Exports | Selected-sheet PDF/PNG and text CSV; whole-document map CSV and multi-page comparison PDF. |
-| Offline operation | PDF renderer, fonts, character maps and decoder assets are embedded in one HTML file. |
+| Whole-document comparison | Indexes and compares every sheet in both PDFs in one run. |
+| Automatic page matching | Pairs sheets by their text, a visual fingerprint and document order, so an inserted sheet shifts the rest instead of misaligning everything. |
+| Added and removed sheets | Get their own rows in the sheet map rather than being silently paired with something else. |
+| Coloured overlay | Red marks original-only pixels, blue marks revised-only pixels, grey is shared content. |
+| Highlighted side by side | Original-only changes in red on the left, revised-only changes in blue on the right, with matching region boxes in both panes. |
+| Text changes | Lists added and removed extracted lines for the selected sheet pair. |
+| Match corrections | Pin the correct pairing for an uncertain sheet and the whole stack is rematched around it. |
+| Alignment and filters | Shift, rotate, scale, suggest a shift, tune sensitivity and ignore rectangles such as title blocks. |
+| Exports | Overlay PDF/PNG and text CSV for one sheet; a summary CSV and a multi-page comparison PDF for the whole document. |
+| Fully offline | The PDF renderer, fonts, character maps and decoders are embedded in the one HTML file. |
 
-For example, if a 19-sheet drawing gains a sheet at revised page 5, the map can show an added page 5 and pair original page 5 with revised page 6, continuing through original 19 → revised 20. Equal total page counts can still contain both an insertion and a deletion.
+For example, if a 19-sheet set gains a sheet at revised page 5, the map shows an added page 5, pairs original 5 with revised 6, and continues through original 19 → revised 20. Two documents with the same page count can still contain both an insertion and a deletion, and the map shows both.
 
-Automatic pairing is heuristic. Blank, repeated, reordered or heavily revised sheets can need review. Similarity percentages are scores, not accuracy probabilities. Page-counter changes remain visible in the actual comparison even when they are ignored for page identity.
+## Three ways to look at a sheet
 
-## Three review views
+- **Overlay** — both revisions on one canvas, with nearby changed pixels grouped into numbered regions you can step through.
+- **Side by side** — the two sources next to each other, each highlighting only its own changes, so nothing is invented on the opposite side.
+- **Text changes** — added and removed extracted lines, with whitespace normalized.
 
-- **Overlay:** both revisions on one canvas, with changed pixels coloured and nearby changes grouped into regions.
-- **Side by side:** synchronized page geometry with changes highlighted on each corresponding source. Change navigation stays in this view.
-- **Text changes:** whitespace-normalized extracted-text additions/removals. No OCR or part-number matching is performed.
+Keyboard: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view, <kbd>n</kbd> and <kbd>p</kbd> step through change regions, <kbd>[</kbd> and <kbd>]</kbd> step through the sheet map.
 
-**Manual pairing & match corrections** and **Align & Filter** both start collapsed, keeping the everyday workflow compact. Per-sheet alignment and ignored regions are restored when you revisit a mapped row.
+## Privacy
 
-## Privacy and limits
+Your PDFs are read into browser memory and never uploaded. The app has no upload endpoint, analytics, account system, browser storage or service worker. A Content Security Policy refuses every outbound connection, and the network APIs are replaced with functions that throw before any other code runs — in the page and in the PDF worker. See [Privacy](docs/PRIVACY.md).
 
-PDFs are selected through the browser file picker and processed in browser memory. The app has no upload endpoint, analytics, CDN, account system, browser storage or service worker. A Content Security Policy blocks network connections. Downloading the release requires internet access; running the extracted app does not. See [Privacy and security](docs/PRIVACY-AND-SECURITY.md).
+## Good to know
 
-Review comparison results before engineering approval. Supported scope and limitations:
+Matching is a heuristic, and the app is honest about where it is unsure:
 
-- Annotations/comments and interactive-form changes are outside the supported comparison scope.
-- No OCR, CAD entity/intent recognition, logical table reconstruction, calibrated measurement or vector editing is provided.
-- Grayscale pixel comparison can miss colour-only changes of similar luminance. Resolution, tolerance and ignored areas can hide small real changes.
-- Matching preserves page order; moved sheets can appear as added/removed.
-- Limits are 150 MB per input, 250,000 candidate page pairs, 12 megapixels per rendered sheet, 1,500 extracted lines per page, and 200 MB of image data per full PDF export.
-- Large PDFs can pause the browser. Stop takes effect between processing steps, not during a long render.
-
-Validate on internal known-change examples before operational use. Synthetic test success does not prove suitability for your company's documents.
+- Blank, repeated, reordered or heavily redrawn sheets can be ambiguous. Those rows are flagged **Check match**; pin the right pairing if the proposal is wrong.
+- Moved sheets usually appear as one removal and one addition, because matching preserves page order.
+- Similarity percentages are scores, not probabilities.
+- Grayscale pixel comparison can miss a colour-only change of similar brightness. High tolerance, low render quality or a large ignored area can hide a small real change.
+- Annotations, comments and interactive form fields are outside the comparison. No OCR, CAD entity recognition, table reconstruction, calibrated measurement or vector editing.
+- Exported PDFs are rasterized images, not vector layers, and are not calibrated for measurement.
+- Limits: 150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per whole-document PDF export.
+- A very large stack can make the browser tab unresponsive for a while. **Stop** takes effect between steps, not in the middle of a long render.
 
 ## Build and test
 
-End users do not need development tools. Developers need Node.js 24+. Run these commands from the repository root, or from `developer-source/` if using the packaged release ZIP:
+End users need nothing but a browser. For development, Node.js 24+:
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
@@ -68,7 +69,7 @@ npm run build
 npm test
 ```
 
-The standalone app is written to `dist/Revision Lens.html`; the repository also includes a prebuilt copy there. Build dependencies must first be downloaded; the resulting app needs no network access. To run the browser workflows on a machine without an installed Chrome:
+The standalone app is written to `dist/Revision Lens.html`; a prebuilt copy is committed there too. For the offline browser suites:
 
 ```sh
 npx playwright install chromium
@@ -76,25 +77,25 @@ npm run test:browser
 npm run test:batch
 ```
 
-Windows tests use installed Chrome by default. Set `REVISION_LENS_BROWSER` to an installed Chromium/Edge executable to choose another browser. On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
+Windows uses installed Chrome by default. Set `REVISION_LENS_BROWSER` to a Chromium or Edge executable to pick another browser. On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
-See [Development](docs/DEVELOPMENT.md), [Architecture](docs/ARCHITECTURE.md), and [Validation](docs/VALIDATION.md) for details. An optional CI template is included for running the engine and offline browser workflows on fictional fixtures.
+See [Development](docs/DEVELOPMENT.md) and [Architecture](docs/ARCHITECTURE.md) for details.
 
 ## Repository layout
 
 ```text
 source/             Application, comparison engine, matcher, HTML and CSS
-dist/               Prebuilt standalone application and renderer license files
-docs/               User guide, architecture, privacy and validation
-test-fixtures/      Fictional PDFs used only by automated tests
+dist/               Prebuilt standalone app and renderer license files
+docs/               User guide, architecture and privacy notes
+test-fixtures/      Invented PDFs used only by the automated tests
 test-*.mjs          Pixel, matching and offline browser tests
 build.mjs           Bundles renderer, worker and binary assets into the HTML
-make_*.py           Optional fictional-fixture generators
+make_*.py           Optional fixture generators
 licenses/           Third-party license copies
 ```
 
-## License and project status
+Found a problem? Open an issue with your browser and version, the settings you used and what you expected. Please attach only invented or redacted PDFs — never a confidential drawing.
 
-Custom application code is [MIT licensed](LICENSE). Bundled third-party components retain their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and `licenses/`. There is no application license fee. Review, maintenance and any internal hosting can still cost company time or money.
+## License
 
-Revision Lens was independently implemented. See [the changelog](CHANGELOG.md) for version history.
+Application code is [MIT licensed](LICENSE). Bundled third-party components keep their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and `licenses/`. See [the changelog](CHANGELOG.md) for version history.

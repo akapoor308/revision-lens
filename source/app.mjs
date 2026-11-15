@@ -1,12 +1,35 @@
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import {comparePixels, inkAt, suggestTranslation, diffLines, highlightSide} from './engine.mjs';
-import {matchingTokens,matchPages,validatePins} from './matching.mjs';
+import {matchingTokens,matchPages,validatePins,MAX_PAGE_PAIRS} from './matching.mjs';
 
 const $=id=>document.getElementById(id);
 const decode=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const assets=JSON.parse($('embedded-assets').textContent);
 const workerUrl=URL.createObjectURL(new Blob([decode(JSON.parse($('embedded-worker').textContent))],{type:'text/javascript'}));
-pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;
+// Last resort only: PDF.js imports this wrapper on the main thread if a real
+// worker cannot start, so a browser that refuses blob workers still works.
+pdfjs.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob(
+  ['await import('+JSON.stringify(workerUrl)+');export const WorkerMessageHandler=globalThis.pdfjsWorker.WorkerMessageHandler;'],
+  {type:'text/javascript'}));
+// Each document gets its own parsing thread. The worker announces itself with a
+// first message; if it stays silent we stop trying and let PDF.js fall back.
+let workersUsable=true;
+function startWorker(){
+  if(!workersUsable)return Promise.resolve(null);
+  return new Promise(resolve=>{
+    let worker,timer;
+    try{worker=new Worker(workerUrl);}catch{workersUsable=false;resolve(null);return;}
+    const finish=value=>{
+      clearTimeout(timer);
+      worker.removeEventListener('message',onReady);worker.removeEventListener('error',onFailure);
+      resolve(value);
+    };
+    const onReady=()=>finish(worker);
+    const onFailure=()=>{workersUsable=false;worker.terminate();finish(null);};
+    timer=setTimeout(onFailure,4000);
+    worker.addEventListener('message',onReady);worker.addEventListener('error',onFailure);
+  });
+}
 class EmbeddedBinaryDataFactory {
   async fetch({kind,filename}) {
     const key=({cMapUrl:'cmaps',standardFontDataUrl:'standard_fonts',wasmUrl:'wasm'})[kind]+'/'+filename;
@@ -14,7 +37,7 @@ class EmbeddedBinaryDataFactory {
     return decode(assets[key]);
   }
 }
-const state={docs:{},tasks:{},names:{},pages:{},a:null,b:null,aligned:null,result:null,mode:'overlay',busy:false,exclusions:[],selecting:false,region:-1,text:[],textWarning:'',scale:2,actualDpi:144,pair:null,
+const state={docs:{},tasks:{},ports:{},names:{},pages:{},a:null,b:null,aligned:null,result:null,mode:'overlay',busy:false,exclusions:[],selecting:false,region:-1,text:[],textWarning:'',scale:2,actualDpi:144,pair:null,
   features:{},rows:[],pins:[],activeRow:-1,job:false,cancelled:false,batchComplete:false};
 const canvas=$('canvas'), annotation=$('annotations');
 const status=(s,type='')=>{ $('status').textContent=s; $('status').className='status '+type; };
@@ -36,28 +59,39 @@ function lock(busy){
   $('saveCsv').disabled=busy||!result||!state.text.length;
   for(const id of ['prevRegion','nextRegion']) $(id).disabled=busy||!state.result?.regions.length;
   $('reset').disabled=busy;
+  $('swap').disabled=busy||!both;
+  for(const id of ['oldPage','newPage','quality','threshold','tolerance','shiftX','shiftY','rotation','scale'])$(id).disabled=busy;
 }
 const yieldUi=()=>new Promise(r=>setTimeout(r,20));
 async function run(fn){ if(state.busy)return;lock(true);try{await fn();}catch(e){ console.error(e);status(e.message||'Comparison failed.','error');}finally{lock(false);} }
 function clearResult(){
   for(const key of ['a','b','base','aligned','overlay','splitOld','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}
   state.a=state.b=state.aligned=state.result=null;state.text=[];state.region=-1;state.pair=null;state.exclusions=[];state.selecting=false;
-  $('empty').hidden=false;$('empty').style.display='flex';$('visual').hidden=true;$('textView').hidden=true;
+  $('empty').hidden=false;$('visual').hidden=true;$('textView').hidden=true;
   $('summary').textContent='Ready for the whole stack';$('regionPosition').textContent='—';$('heading').textContent='Let’s spot the plot twists.';
   $('exclude').classList.remove('active-exclude');$('exclude').setAttribute('aria-pressed','false');
   annotation.classList.remove('selecting');
 }
 async function loadBytes(side, bytes, name){
+  const port=await startWorker();
   const task=pdfjs.getDocument({data:bytes,BinaryDataFactory:EmbeddedBinaryDataFactory,useWorkerFetch:false,
     cMapPacked:true,cMapUrl:'embedded/',standardFontDataUrl:'embedded/',wasmUrl:'embedded/',
-    isEvalSupported:false,enableScripting:false,useSystemFonts:false,stopAtErrors:true});
-  task.onPassword=()=>task.destroy();
+    isEvalSupported:false,enableScripting:false,useSystemFonts:false,stopAtErrors:true,
+    ...(port?{worker:pdfjs.PDFWorker.create({port})}:{})});
+  let locked=false;
+  task.onPassword=()=>{locked=true;task.destroy();};
   let doc;
-  try {doc=await task.promise;} catch(e){throw new Error('Cannot open '+name+'. Use an unencrypted, valid PDF. '+e.message);}
+  try {doc=await task.promise;} catch(e){
+    port?.terminate();
+    throw new Error(locked?name+' is password-protected. Save an unlocked copy and open that instead.'
+      :'Cannot open '+name+'. It must be a valid, unencrypted PDF. '+e.message);
+  }
   if(state.tasks[side]) await state.tasks[side].destroy();
+  state.ports[side]?.terminate();
+  state.ports[side]=port;
   state.tasks[side]=task;
   state.docs[side]=doc;state.names[side]=name;
-  state.features={};state.rows=[];state.pins=[];state.activeRow=-1;state.batchComplete=false;
+  delete state.features[side];state.rows=[];state.pins=[];state.activeRow=-1;state.batchComplete=false;
   $('sheetPanel').hidden=true;$('stackStats').hidden=true;$('progressTrack').hidden=true;$('sheetList').replaceChildren();
   $(side+'Name').textContent=name;$(side+'Meta').textContent=doc.numPages+' page'+(doc.numPages===1?'':'s')+' · loaded locally';
   const select=$(side+'Page');select.replaceChildren();
@@ -66,13 +100,53 @@ async function loadBytes(side, bytes, name){
   select.value='1';
   clearResult();
 }
-for(const side of ['old','new']) $(side+'File').addEventListener('change',e=>{
-  const file=e.target.files[0];if(!file)return;
-  run(async()=>{status('Opening '+file.name+'…','busy');
-    if(file.size>150*1024*1024)throw new Error('Prototype file limit is 150 MB per PDF.');
-    await loadBytes(side,new Uint8Array(await file.arrayBuffer()),file.name);
-    status(state.docs.old&&state.docs.new?'Both PDFs loaded. Ready to compare all sheets.':'PDF loaded. Choose the other revision.');
-  });
+const STILL_BUSY='Still comparing. Wait for the current run to finish, then choose the file again.';
+function acceptable(file){
+  if(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name))return true;
+  status('“'+file.name+'” is not a PDF. Choose a PDF file.','error');return false;
+}
+async function loadFile(side,file){
+  status('Opening '+file.name+'…','busy');
+  if(file.size>150*1024*1024)throw new Error('The file limit is 150 MB per PDF. '+file.name+' is larger.');
+  await loadBytes(side,new Uint8Array(await file.arrayBuffer()),file.name);
+  status(state.docs.old&&state.docs.new?'Both PDFs loaded. Ready to compare all sheets.':'PDF loaded. Choose the other revision.');
+}
+function openFile(side,file){
+  if(!file)return;
+  if(state.busy){status(STILL_BUSY,'busy');return;}
+  if(acceptable(file))run(()=>loadFile(side,file));
+}
+for(const side of ['old','new']){
+  const input=$(side+'File'),card=input.closest('.file-card');
+  input.addEventListener('change',e=>{const file=e.target.files[0];input.value='';openFile(side,file);});
+  card.addEventListener('dragover',e=>{e.preventDefault();card.classList.add('drop-target');});
+  for(const event of ['dragleave','dragend'])card.addEventListener(event,()=>card.classList.remove('drop-target'));
+  card.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();card.classList.remove('drop-target');openFile(side,e.dataTransfer.files[0]);});
+}
+// Dropping two PDFs anywhere fills both cards: the first is the original.
+document.addEventListener('dragover',e=>{if(e.dataTransfer?.types.includes('Files'))e.preventDefault();});
+document.addEventListener('drop',e=>{
+  const files=[...(e.dataTransfer?.files||[])].slice(0,2);if(!files.length)return;
+  e.preventDefault();
+  if(state.busy){status(STILL_BUSY,'busy');return;}
+  if(!files.every(acceptable))return;
+  run(async()=>{await loadFile('old',files[0]);if(files[1])await loadFile('new',files[1]);});
+});
+// Both documents are already parsed, so swapping is a relabel, not a reload.
+$('swap').onclick=()=>run(async()=>{
+  for(const map of ['docs','tasks','ports','names','features']){const held=state[map].old;state[map].old=state[map].new;state[map].new=held;}
+  state.rows=[];state.pins=[];state.activeRow=-1;state.batchComplete=false;
+  $('sheetPanel').hidden=true;$('stackStats').hidden=true;$('progressTrack').hidden=true;$('sheetList').replaceChildren();
+  for(const side of ['old','new']){
+    const doc=state.docs[side];
+    $(side+'Name').textContent=state.names[side];
+    $(side+'Meta').textContent=doc.numPages+' page'+(doc.numPages===1?'':'s')+' · loaded locally';
+    const select=$(side+'Page');select.replaceChildren(new Option('— No sheet','0'));
+    for(let page=1;page<=doc.numPages;page++)select.append(new Option(String(page),String(page)));
+    select.value='1';
+  }
+  resetAlign();clearResult();
+  status('Swapped: “'+state.names.old+'” is now the original. Compare all sheets to rebuild the map.');
 });
 function alignValues(){return {x:Number($('shiftX').value)||0,y:Number($('shiftY').value)||0,rotation:Number($('rotation').value)||0,scale:Math.max(20,Math.min(500,Number($('scale').value)||100))};}
 function resetAlign(){for(const id of ['shiftX','shiftY','rotation'])$(id).value=0;$('scale').value=100;}
@@ -116,6 +190,7 @@ async function compare(){
   }
   catch(e){state.text=[];state.textWarning=e.message;}
   await updateComparison();
+  pa?.cleanup();pb?.cleanup();
 }
 function transformB(w=state.w,h=state.h, factor=1){
   const b=makeCanvas(w,h),ctx=b.getContext('2d',{willReadFrequently:true});
@@ -136,7 +211,8 @@ async function updateComparison(){
   $('heading').textContent=!+$('oldPage').value?'A new sheet joins the stack.':!+$('newPage').value?'This sheet left the stack.':'Original '+$('oldPage').value+' → Revised '+$('newPage').value;
   const r=state.result;
   $('summary').textContent=r.regions.length+' visual region'+(r.regions.length===1?'':'s')+' · '+r.removed.toLocaleString()+' original-only pixels · '+r.added.toLocaleString()+' revised-only pixels';
-  $('renderInfo').textContent=Math.round(state.actualDpi)+' dpi · '+state.w+' × '+state.h+' px · pages '+$('oldPage').value+' / '+$('newPage').value;
+  const label=id=>+$(id).value||'no sheet';
+  $('renderInfo').textContent=Math.round(state.actualDpi)+' dpi · '+state.w+' × '+state.h+' px · A '+label('oldPage')+' / B '+label('newPage');
   status((r.regions.length?'Comparison ready. Regions group nearby changed pixels; inspect each area.':'No grouped visual differences at the current settings. Small changes may fall below the region filter.')+
     (state.sizeWarning?' Page sizes differ: pages were not automatically resized; check scale and alignment.':'')+
     (state.actualDpi+0.1<+$('quality').value?' Quality was reduced to stay within the 12 MP limit.':'')+
@@ -164,7 +240,7 @@ $('align').onclick=()=>run(async()=>{
 });
 function draw(){
   if(!state.result)return;
-  $('empty').hidden=true;$('empty').style.display='none';
+  $('empty').hidden=true;
   $('visual').hidden=state.mode==='text';$('textView').hidden=state.mode!=='text';
   if(state.mode==='text')return;
   const split=state.mode==='split',gap=30;
@@ -206,9 +282,12 @@ function paintAnnotations(drag){
   }
   $('regionPosition').textContent=state.result.regions.length?(state.region<0?'0':state.region+1)+' / '+state.result.regions.length:'0 / 0';
 }
-for(const button of document.querySelectorAll('[data-mode]'))button.onclick=()=>{
-  state.mode=button.dataset.mode;for(const b of document.querySelectorAll('[data-mode]'))b.classList.toggle('active',b===button);draw();
-};
+function showMode(mode){
+  state.mode=mode;
+  for(const b of document.querySelectorAll('[data-mode]'))b.classList.toggle('active',b.dataset.mode===mode);
+  draw();
+}
+for(const button of document.querySelectorAll('[data-mode]'))button.onclick=()=>showMode(button.dataset.mode);
 $('zoom').onchange=draw;window.addEventListener('resize',()=>{if(state.result&&$('zoom').value==='fit')draw();});
 function goRegion(dir){
   if(!state.result?.regions.length)return;
@@ -239,6 +318,10 @@ function renderText(){
   if(!state.text.length){const empty=document.createElement('p');empty.className='text-empty';empty.textContent=state.textWarning?'Text comparison unavailable.':'No extracted-text differences. Scanned or outlined text may have no extractable content.';root.append(empty);return;}
   for(const change of state.text){const row=document.createElement('div');row.className='text-row '+change.type;const type=document.createElement('span');type.textContent=change.type;const text=document.createElement('p');text.textContent=change.text;row.append(type,text);root.append(row);}
 }
+function exportName(kind,extension){
+  const a=+$('oldPage').value,b=+$('newPage').value;
+  return 'revision-lens-'+kind+'-A'+(a||'none')+'-B'+(b||'none')+'.'+extension;
+}
 function download(bytes,type,name){const url=URL.createObjectURL(new Blob([bytes],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 function exportCanvas(){
   const w=state.w,header=Math.max(120,Math.round(w*.08)),c=makeCanvas(w,state.h+header),ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,w,c.height);
@@ -254,9 +337,14 @@ function exportCanvas(){
   ctx.setLineDash([6,4]);for(const r of state.exclusions)ctx.strokeRect(r.x*w,r.y*state.h+header,r.w*w,r.h*state.h);
   return c;
 }
-$('savePng').onclick=()=>run(async()=>{const c=exportCanvas();const blob=await new Promise(r=>c.toBlob(r,'image/png'));if(!blob)throw new Error('Image export failed.');download(blob,'image/png','revision-lens-overlay.png');status('Overlay PNG saved for the selected page pair.');});
-function imagePdf(c){
-  const jpeg=decode(c.toDataURL('image/jpeg',.95).split(',')[1]);const enc=new TextEncoder();
+$('savePng').onclick=()=>run(async()=>{const c=exportCanvas();const blob=await new Promise(r=>c.toBlob(r,'image/png'));if(!blob)throw new Error('Image export failed.');download(blob,'image/png',exportName('overlay','png'));status('Overlay PNG saved for the selected page pair.');});
+async function jpegBytes(c,quality){
+  const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',quality));
+  if(!blob)throw new Error('Image encoding failed. Try a lower render quality.');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+async function imagePdf(c){
+  const jpeg=await jpegBytes(c,.95);const enc=new TextEncoder();
   const width=state.w/state.scale,height=c.height/state.scale;
   const stream='q\n'+width.toFixed(3)+' 0 0 '+height.toFixed(3)+' 0 0 cm\n/Im0 Do\nQ\n';
   const objs=[enc.encode('<< /Type /Catalog /Pages 2 0 R >>'),enc.encode('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'),
@@ -268,23 +356,24 @@ function imagePdf(c){
   chunks.push(enc.encode('xref\n0 6\n0000000000 65535 f \n'+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+length+'\n%%EOF'));
   return new Blob(chunks,{type:'application/pdf'});
 }
-$('savePdf').onclick=()=>run(async()=>{download(imagePdf(exportCanvas()),'application/pdf','revision-lens-overlay.pdf');status('Rasterized overlay PDF saved for the selected page pair.');});
+$('savePdf').onclick=()=>run(async()=>{download(await imagePdf(exportCanvas()),'application/pdf',exportName('overlay','pdf'));status('Rasterized overlay PDF saved for the selected page pair.');});
 $('saveCsv').onclick=()=>{
-  // Neutralize spreadsheet formula prefixes in every user-controlled string.
-  const cell=s=>'"'+String(/^(\s*[=+\-@]|[\t\r])/.test(String(s))?"'"+s:s).replaceAll('"','""')+'"';
   const rows=[['Type','Extracted line','Text','Original file','Original page','Revised file','Revised page'],...state.text.map(c=>[c.type,c.line,c.text,state.names.old,$('oldPage').value,state.names.new,$('newPage').value])];
-  download('\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8','revision-lens-text-changes.csv');
+  download('\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8',exportName('text-changes','csv'));
 };
 $('reset').onclick=()=>run(async()=>{
-  for(const task of Object.values(state.tasks))await task.destroy();state.docs={};state.tasks={};state.names={};resetAlign();clearResult();
+  for(const task of Object.values(state.tasks))await task.destroy();
+  for(const port of Object.values(state.ports))port?.terminate();
+  state.docs={};state.tasks={};state.ports={};state.names={};resetAlign();clearResult();
   state.rows=[];state.features={};state.pins=[];state.activeRow=-1;state.batchComplete=false;
   $('sheetPanel').hidden=true;$('stackStats').hidden=true;$('progressTrack').hidden=true;$('sheetList').replaceChildren();
-  for(const side of ['old','new']){$(side+'File').value='';$(side+'Name').textContent=side==='old'?'Choose original PDF':'Choose revised PDF';$(side+'Meta').textContent='Select a file from this computer';$(side+'Page').replaceChildren(new Option('1','1'));}
+  for(const side of ['old','new']){$(side+'File').value='';$(side+'Name').textContent=side==='old'?'Choose original PDF':'Choose revised PDF';$(side+'Meta').textContent='Drop a PDF here, or click to choose';$(side+'Page').replaceChildren(new Option('1','1'));}
   state.mode='overlay';for(const b of document.querySelectorAll('[data-mode]'))b.classList.toggle('active',b.dataset.mode==='overlay');
   $('alignmentControls').open=false;document.querySelector('.manual').open=false;
   status('Session cleared. Reload or close this tab to release remaining browser-managed resources.');$('summary').textContent='Waiting for PDFs';
 });
-window.addEventListener('error',e=>status('Browser error: '+e.message+'. Check the included README for supported browsers.','error'));
+window.addEventListener('error',e=>status('Something went wrong: '+e.message,'error'));
+window.addEventListener('unhandledrejection',e=>status('Something went wrong: '+(e.reason?.message||e.reason),'error'));
 
 function whiteCanvas(w,h){const c=makeCanvas(w,h),ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,w,h);return c;}
 function snapshot(){return {x:$('shiftX').value,y:$('shiftY').value,rotation:$('rotation').value,scale:$('scale').value,quality:$('quality').value,threshold:$('threshold').value,tolerance:$('tolerance').value,exclusions:state.exclusions.map(r=>({...r}))};}
@@ -299,7 +388,8 @@ function recordCurrentRow(){
   row.settings=snapshot();row.regions=state.result.regions.length;row.removed=state.result.removed;row.added=state.result.added;row.textChanges=state.text.length;row.dpi=state.actualDpi;
   row.status=!row.old?'Added':!row.new?'Removed':row.removed+row.added+row.textChanges>0?'Changed':'Unchanged';
   row.textWarning=state.textWarning;
-  if(state.textWarning){row.review=true;row.reason='Text comparison incomplete: '+state.textWarning;}
+  row.review=!!row.matchReview||!!state.textWarning;
+  row.reason=state.textWarning?'Text comparison incomplete: '+state.textWarning:row.matchReason||row.reason;
   renderMap();
 }
 function renderMap(){
@@ -319,6 +409,11 @@ function renderMap(){
     const title=document.createElement('span');title.className='sheet-name';title.textContent=(r.new?state.features.new?.[r.new-1]:state.features.old?.[r.old-1])?.title||'Sheet '+(r.old||r.new);
     const label=document.createElement('span');label.className='sheet-state';label.textContent=r.status==='Unchanged'?'No differences':r.status;
     button.title=numbers.textContent+' · '+r.reason+(r.error?' · '+r.error:'');button.append(numbers,title,label);
+    if(r.status==='Changed'){
+      const counts=document.createElement('span');counts.className='sheet-counts';
+      counts.textContent=r.regions+' region'+(r.regions===1?'':'s')+(r.textChanges?' · '+r.textChanges+' text change'+(r.textChanges===1?'':'s'):'');
+      button.append(counts);
+    }
     if(r.review){const review=document.createElement('span');review.className='match-review';review.textContent='⚑ Check match'+(r.old&&r.new?' · '+Math.round(r.score*100)+'% similarity':'');button.append(review);}
     if(r.pinned){const pin=document.createElement('span');pin.className='pin';pin.textContent=' · pinned';button.append(pin);}
     button.onclick=()=>run(()=>openRow(index));list.append(button);
@@ -353,7 +448,6 @@ async function indexDocument(side){
 
 async function openRow(index){
   const row=state.rows[index];if(!row)throw new Error('Sheet map entry is unavailable.');
-  if(row.status==='Error'&&row.indexError)throw new Error(row.error);
   state.activeRow=index;$('oldPage').value=String(row.old||0);$('newPage').value=String(row.new||0);
   const fallback={x:'0',y:'0',rotation:'0',scale:'100',quality:$('quality').value,threshold:$('threshold').value,tolerance:$('tolerance').value,exclusions:[]};
   applySnapshot(row.settings||fallback);state.pair=(row.old||0)+':'+(row.new||0);
@@ -362,7 +456,7 @@ async function openRow(index){
 }
 
 async function compareAll(){
-  if(state.docs.old.numPages*state.docs.new.numPages>250000)throw new Error('This prototype allows 250,000 page-pair candidates per run. Split exceptionally large PDF stacks first.');
+  if(state.docs.old.numPages*state.docs.new.numPages>MAX_PAGE_PAIRS)throw new Error('A run compares up to '+MAX_PAGE_PAIRS.toLocaleString()+' page-pair candidates. Split exceptionally large PDF stacks first.');
   state.job=true;state.cancelled=false;state.batchComplete=false;lock(true);
   const defaults={x:'0',y:'0',rotation:'0',scale:'100',quality:$('quality').value,threshold:$('threshold').value,tolerance:$('tolerance').value,exclusions:[]};
   const previous=new Map(state.rows.map(r=>[(r.old||0)+':'+(r.new||0),r.settings]));
@@ -374,14 +468,13 @@ async function compareAll(){
     if(!old||!newer||state.cancelled){status('Stopped while indexing. The whole-document comparison has not completed.');return;}
     status('Matching sheet content and finding insertions or removals…','busy');progress(40,'Matching the two stacks');await yieldUi();
     const rows=matchPages(old,newer,{pins:state.pins});
-    state.rows=rows.map(r=>({...r,status:'Pending',settings:{...defaults,exclusions:[]}}));
+    state.rows=rows.map(r=>({...r,matchReview:r.review,matchReason:r.reason,status:'Pending',settings:{...defaults,exclusions:[]}}));
     for(const r of state.rows){const prior=previous.get((r.old||0)+':'+(r.new||0));if(prior)for(const k of ['x','y','rotation','scale','exclusions'])r.settings[k]=prior[k];}
     state.activeRow=-1;renderMap();
     for(let i=0;i<state.rows.length;i++){
       if(state.cancelled)break;
       progress(40+60*i/state.rows.length,'Comparing sheet '+(i+1)+' / '+state.rows.length);await yieldUi();
       try{await openRow(i);}catch(e){const r=state.rows[i];r.status='Error';r.error=e.message;r.review=true;r.reason='Sheet comparison failed; inspect the source PDF';renderMap();}
-      const r=state.rows[i];if(r.old)(await state.docs.old.getPage(r.old)).cleanup();if(r.new)(await state.docs.new.getPage(r.new)).cleanup();
     }
     const pending=state.rows.filter(r=>r.status==='Pending').length,errors=state.rows.filter(r=>r.status==='Error').length;
     state.batchComplete=!state.cancelled&&!pending&&!errors;
@@ -397,11 +490,15 @@ $('compareAll').onclick=()=>run(compareAll);
 $('cancel').onclick=()=>{state.cancelled=true;$('cancel').disabled=true;status('Stopping after the current sheet. Pending sheets will remain marked as pending.','busy');};
 $('pinPair').onclick=()=>run(async()=>{
   const pin={old:+$('oldPage').value,new:+$('newPage').value};
-  const candidate=[...state.pins.filter(p=>p.old!==pin.old),pin];
-  state.pins=validatePins(candidate,state.docs.old.numPages,state.docs.new.numPages);await compareAll();
+  const kept=state.pins.filter(p=>p.old!==pin.old&&p.new!==pin.new&&(p.old<pin.old)===(p.new<pin.new));
+  const dropped=state.pins.length-kept.length;
+  state.pins=validatePins([...kept,pin],state.docs.old.numPages,state.docs.new.numPages);
+  await compareAll();
+  if(dropped)status($('status').textContent+' Replaced '+dropped+' conflicting pin'+(dropped===1?'':'s')+'.');
 });
 $('clearPins').onclick=()=>run(async()=>{state.pins=[];await compareAll();});
 
+// Neutralize spreadsheet formula prefixes in every user-controlled string.
 function csvCell(s){return '"'+String(/^(\s*[=+\-@]|[\t\r])/.test(String(s))?"'"+s:s).replaceAll('"','""')+'"';}
 $('saveMap').onclick=()=>{
   const rows=[['Original page','Revised page','Result','Review match','Similarity (not probability)','Reason','Regions','Original-only pixels','Revised-only pixels','Text changes','DPI','Original file','Revised file','Run complete'],
@@ -428,8 +525,8 @@ $('saveAllPdf').onclick=()=>run(async()=>{
     for(let i=0;i<state.rows.length;i++){
       if(state.cancelled){status('Export stopped. No partial PDF was saved.');return;}
       progress(100*i/state.rows.length,'Exporting comparison '+(i+1)+' / '+state.rows.length);await openRow(i);await yieldUi();
-      const c=exportCanvas(),jpeg=decode(c.toDataURL('image/jpeg',.94).split(',')[1]);bytes+=jpeg.length;
-      if(bytes>200*1024*1024)throw new Error('Export exceeds the prototype 200 MB image-data limit. Use a lower render quality and compare again.');
+      const c=exportCanvas(),jpeg=await jpegBytes(c,.94);bytes+=jpeg.length;
+      if(bytes>200*1024*1024)throw new Error('Export exceeds the 200 MB image-data limit. Use a lower render quality and compare again.');
       parts.push({jpeg,pixelsW:c.width,pixelsH:c.height,width:c.width/state.scale,height:c.height/state.scale});c.width=c.height=0;
     }
     if(state.cancelled){status('Export stopped. No partial PDF was saved.');return;}
@@ -440,3 +537,23 @@ $('saveAllPdf').onclick=()=>run(async()=>{
   }
 });
 lock(false);
+
+// Keyboard shortcuts: 1/2/3 switch view, n/p step through change regions,
+// [ and ] step through the sheet map. Ignored while a field has focus.
+function stepRow(direction){
+  if(state.busy||!state.rows.length)return;
+  const visible=[...document.querySelectorAll('.sheet-row')].map(button=>+button.dataset.row);
+  if(!visible.length)return;
+  const at=visible.indexOf(state.activeRow);
+  const next=at<0?visible[direction>0?0:visible.length-1]:visible[(at+direction+visible.length)%visible.length];
+  run(()=>openRow(next));
+}
+document.addEventListener('keydown',event=>{
+  if(event.ctrlKey||event.metaKey||event.altKey)return;
+  if(event.target.closest('input,select,textarea,summary'))return;
+  const key=event.key.length===1?event.key.toLowerCase():event.key;
+  const views={'1':'overlay','2':'split','3':'text'};
+  if(Object.hasOwn(views,key)){if(state.result){showMode(views[key]);event.preventDefault();}return;}
+  const actions={n:()=>goRegion(1),p:()=>goRegion(-1),']':()=>stepRow(1),'[':()=>stepRow(-1)};
+  if(Object.hasOwn(actions,key)){actions[key]();event.preventDefault();}
+});
