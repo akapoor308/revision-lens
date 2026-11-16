@@ -18,16 +18,27 @@ export function comparePixels(a, b, width, height, {threshold = 0.18, radius = 1
   if (a.length !== n * 4 || b.length !== n * 4) throw new Error('Image dimensions do not match.');
   const ai = new Float32Array(n), bi = new Float32Array(n);
   for (let p = 0; p < n; p++) { ai[p] = inkAt(a, p * 4); bi[p] = inkAt(b, p * 4); }
+  // A square maximum filter is separable: one horizontal pass then one vertical
+  // pass gives the same result as the full window at a fraction of the reads.
   function dilate(input) {
     if (!radius) return input;
-    const result = new Float32Array(n);
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      let v = input[y * width + x];
-      for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
-        const xx = x + dx, yy = y + dy;
-        if (xx >= 0 && xx < width && yy >= 0 && yy < height) v = Math.max(v, input[yy * width + xx]);
+    const wide = new Float32Array(n), result = new Float32Array(n);
+    for (let y = 0; y < height; y++) {
+      const row = y * width;
+      for (let x = 0; x < width; x++) {
+        let v = input[row + x];
+        const from = Math.max(0, x - radius), to = Math.min(width - 1, x + radius);
+        for (let xx = from; xx <= to; xx++) if (input[row + xx] > v) v = input[row + xx];
+        wide[row + x] = v;
       }
-      result[y * width + x] = v;
+    }
+    for (let y = 0; y < height; y++) {
+      const from = Math.max(0, y - radius), to = Math.min(height - 1, y + radius);
+      for (let x = 0; x < width; x++) {
+        let v = wide[y * width + x];
+        for (let yy = from; yy <= to; yy++) if (wide[yy * width + x] > v) v = wide[yy * width + x];
+        result[y * width + x] = v;
+      }
     }
     return result;
   }

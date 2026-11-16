@@ -1,6 +1,6 @@
 {
   "name": "revision-lens",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Offline PDF revision comparison with automatic sheet matching and highlighted overlays.",

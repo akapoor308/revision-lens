@@ -12,6 +12,32 @@ page.setDefaultTimeout(15000);
 page.on('pageerror',e=>errors.push(e.message));page.on('console',msg=>consoleMessages.push(msg.type()+': '+msg.text()));
 page.on('request',r=>{if(/^https?:/.test(r.url()))network.push(r.url());});
 await page.goto(pathToFileURL(path.join(output,'Revision Lens.html')).href);
+// Every network API must be unreachable, and the lock must not be replaceable.
+const offlineLock=await page.evaluate(()=>{
+  const target='http://127.0.0.1:9/revision-lens-must-not-reach-this';
+  const verdict=call=>{try{call();return 'ALLOWED';}catch(e){return /runs offline/.test(e.message)?'blocked':'blocked by: '+e.message;}};
+  const results={
+    fetch:verdict(()=>window.fetch(target)),
+    XMLHttpRequest:verdict(()=>new window.XMLHttpRequest()),
+    WebSocket:verdict(()=>new window.WebSocket('ws://127.0.0.1:9')),
+    EventSource:verdict(()=>new window.EventSource(target)),
+    RTCPeerConnection:verdict(()=>new window.RTCPeerConnection()),
+    SharedWorker:verdict(()=>new window.SharedWorker(target)),
+    Request:verdict(()=>new window.Request(target)),
+    sendBeacon:verdict(()=>navigator.sendBeacon(target))
+  };
+  try{window.fetch=()=>'replaced';}catch{}
+  results.lockReplaceable=(()=>{try{return window.fetch('x')==='replaced';}catch{return false;}})();
+  const workerSource=atob(JSON.parse(document.getElementById('embedded-worker').textContent).slice(0,600));
+  results.workerLocked=workerSource.startsWith('(function(){')&&workerSource.includes('runs offline');
+  return results;
+});
+for(const [api,outcome] of Object.entries(offlineLock)){
+  if(api==='lockReplaceable'||api==='workerLocked')continue;
+  assert.equal(outcome,'blocked',api+' is not blocked by the offline lock: '+outcome);
+}
+assert.equal(offlineLock.lockReplaceable,false,'The offline lock must not be replaceable from page scripts.');
+assert.equal(offlineLock.workerLocked,true,'The PDF worker bundle must start with the offline lock.');
 assert.equal(await page.locator('#demo,#demo2,#simpleDemo,#embedded-demo').count(),0);
 assert.equal(await page.locator('#alignmentControls').getAttribute('open'),null);
 assert.equal(await page.locator('.manual').getAttribute('open'),null);
@@ -71,9 +97,45 @@ await page.mouse.move(box.x+1,box.y+1);await page.mouse.down();await page.mouse.
 await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('No grouped visual differences'));
 const excluded=await page.locator('#summary').innerText();
 await page.locator('#reset').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Session cleared.'));
+// Dropping two PDFs anywhere on the page fills both cards, first one first.
+const dropped=await page.evaluate(async bytes=>{
+  const file=(data,name)=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:'application/pdf'});
+  const transfer=new DataTransfer();
+  transfer.items.add(file(bytes[0],'dropped-original.pdf'));
+  transfer.items.add(file(bytes[1],'dropped-revised.pdf'));
+  return document.dispatchEvent(new DragEvent('drop',{dataTransfer:transfer,bubbles:true,cancelable:true}));
+},[(await fs.readFile(fixture('fictional-revision-A.pdf'))).toString('base64'),
+   (await fs.readFile(fixture('fictional-revision-B.pdf'))).toString('base64')]);
+assert.equal(dropped,false,'The page must take over the drop instead of letting the browser open the file.');
+await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Both PDFs loaded.'));
+assert.equal(await page.locator('#oldName').innerText(),'dropped-original.pdf');
+assert.equal(await page.locator('#newName').innerText(),'dropped-revised.pdf');
+// Swapping relabels the two already-parsed documents; shortcuts drive the views.
+await page.locator('#oldFile').setInputFiles(fixture('fictional-revision-A.pdf'));
+await page.waitForFunction(()=>/PDF loaded\.|Both PDFs loaded\./.test(document.querySelector('#status').textContent));
+await page.locator('#newFile').setInputFiles(fixture('fictional-revision-B.pdf'));
+await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Both PDFs loaded.'));
+assert.equal(await page.locator('#oldName').innerText(),'fictional-revision-A.pdf');
+for(const expected of ['fictional-revision-B.pdf','fictional-revision-A.pdf']){
+  await page.locator('#swap').click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Swapped:'));
+  assert.equal(await page.locator('#oldName').innerText(),expected);
+}
+await page.locator('#compareAll').click();
+await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Whole-document comparison complete.'),null,{timeout:60000});
+for(const [key,mode] of [['2','split'],['3','text'],['1','overlay']]){
+  await page.locator('body').press(key);
+  await page.waitForFunction(m=>document.querySelector('[data-mode='+m+']').classList.contains('active'),mode);
+}
+const namedWait=page.waitForEvent('download');await page.locator('#savePng').click();
+const named=(await namedWait).suggestedFilename();
+assert.match(named,/^revision-lens-overlay-A\d+-B\d+\.png$/,'Exports must be named after the pages they cover: '+named);
+// A blob worker must really start: otherwise PDF.js quietly parses every page
+// on the main thread and the interface locks up on large stacks.
+assert.ok(!consoleMessages.some(m=>/fake worker/i.test(m)),'PDF parsing fell back to the main thread: '+consoleMessages.join(' | '));
 if(errors.length)throw new Error('Page errors: '+errors.join('\n'));
 if(network.length)throw new Error('External requests: '+network.join('\n'));
-const results={browser:await browser.version(),offline:true,externalRequests:network.length,errors,noDemoFlow:true,collapsedSettings:true,tabs:['overlay','split','text'],splitHighlights:splitColours,splitNavigationPreserved:true,first,reportText:text,identical:same,suggestedShift:suggested,excluded,consoleMessages};
+const results={browser:await browser.version(),offline:true,externalRequests:network.length,errors,offlineLock,exportName:named,noDemoFlow:true,collapsedSettings:true,tabs:['overlay','split','text'],splitHighlights:splitColours,splitNavigationPreserved:true,first,reportText:text,identical:same,suggestedShift:suggested,excluded,consoleMessages};
 await fs.writeFile(path.join(root,process.env.REVISION_LENS_BROWSER?.includes('Edge')?'edge-results.json':'browser-results.json'),JSON.stringify(results,null,2));
 console.log(JSON.stringify(results,null,2));
 } finally { await browser.close(); }

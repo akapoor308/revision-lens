@@ -6,4 +6,4 @@ PDF.js is copyright Mozilla Foundation and individual contributors, under Apache
 
 The PDF.js distribution also includes component/asset licenses. Copies from the pinned distribution are provided under `licenses/`, including character maps, Foxit and Liberation fonts, OpenJPEG, JBIG2, and QCMS notices. Some notices are included conservatively for assets not used by this configuration. These files are not relicensed under the Revision Lens MIT license.
 
-The build uses **esbuild** (MIT). Browser tests use **Playwright** (Apache 2.0). The fixture generator uses **ReportLab**; it is not shipped as runtime code. Build/test packages are not required by an end user and are not included as executable dependencies in this ZIP. Exact npm versions and integrity values are recorded in `package-lock.json`; review their upstream licenses when installing development dependencies.
+The build uses **esbuild** (MIT), the browser tests use **Playwright** (Apache 2.0), and the fixture generator uses **ReportLab**. None of these ship inside the application: an end user needs only the HTML file. Exact versions are recorded in `package-lock.json`.
