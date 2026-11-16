@@ -54,22 +54,43 @@ const first={status:await page.locator('#status').innerText(),summary:await page
 await page.screenshot({path:path.join(root,'drawing.png'),fullPage:true});
 await page.locator('[data-mode=split]').click();
 const splitColours=await page.locator('#canvas').evaluate(c=>{
-  const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,half=(c.width-30)/2;let red=0,blue=0;
-  for(let p=0;p<d.length/4;p++){const x=p%c.width,i=p*4;if(x<half&&d[i]===207&&d[i+1]===44&&d[i+2]===87)red++;if(x>half&&d[i]===0&&d[i+1]===125&&d[i+2]===156)blue++;}
-  return {red,blue};
+  const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,half=(c.width-30)/2;
+  let leftRed=0,leftBlue=0,rightBlue=0;
+  for(let p=0;p<d.length/4;p++){
+    const x=p%c.width,i=p*4;
+    const red=d[i]===207&&d[i+1]===44&&d[i+2]===87,blue=d[i]===0&&d[i+1]===125&&d[i+2]===156;
+    if(x<half){if(red)leftRed++;if(blue)leftBlue++;}
+    else if(x>half+30&&blue)rightBlue++;
+  }
+  return {leftRed,leftBlue,rightBlue};
 });
-assert.ok(splitColours.red>0&&splitColours.blue>0,'Both split panes must highlight the corresponding changed pixels.');
+assert.equal(splitColours.leftRed,0,'The original pane must stay untouched: no red marking.');
+assert.equal(splitColours.leftBlue,0,'The original pane must stay untouched: no blue marking.');
+assert.ok(splitColours.rightBlue>0,'The revised pane must highlight revised-only pixels.');
 await page.locator('#nextRegion').click();assert.equal(await page.locator('[data-mode=split]').getAttribute('class'),'active');
+const bothWide=await page.locator('#canvas').evaluate(c=>c.width);
+await page.locator('#layerOld').click();
+await page.waitForFunction(w=>document.querySelector('#canvas').width<w,bothWide);
+const singleWide=await page.locator('#canvas').evaluate(c=>c.width);
+assert.ok(singleWide<bothWide,'Hiding a layer must drop that pane from side-by-side view.');
+assert.equal(await page.locator('#layerOld').getAttribute('aria-pressed'),'false');
+// The last visible layer cannot be switched off.
+await page.locator('#layerNew').click();
+await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Keep at least one'));
+assert.equal(await page.locator('#layerNew').getAttribute('aria-pressed'),'true');
+await page.locator('#layerOld').click();
+await page.waitForFunction(w=>document.querySelector('#canvas').width===w,bothWide);
 await page.screenshot({path:path.join(root,'split-drawing.png'),fullPage:true});
 await page.locator('[data-mode=overlay]').click();
 const pdfDownload=page.waitForEvent('download');await page.locator('#savePdf').click();const pdf=await pdfDownload;await pdf.saveAs(path.join(root,'export-test.pdf'));
-const pngDownload=page.waitForEvent('download');await page.locator('#savePng').click();const png=await pngDownload;await png.saveAs(path.join(root,'export-test.png'));
+const splitDownload=page.waitForEvent('download');await page.locator('#saveSplitPdf').click();const splitPdf=await splitDownload;
+assert.match(splitPdf.suggestedFilename(),/^revision-lens-side-by-side-A\d+-B\d+\.pdf$/);
+await splitPdf.saveAs(path.join(root,'export-test-split.pdf'));
 await page.locator('#oldPage').selectOption('2');await page.locator('#newPage').selectOption('2');await page.locator('#compare').click();
 await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Comparison ready.'),{timeout:60000});
 await page.locator('[data-mode=text]').click();const text=await page.locator('#textView').innerText();
 if(!text.includes('Powder coat')||!text.includes('DEMO-400'))throw new Error('Report changes were not extracted.');
 await page.screenshot({path:path.join(root,'report.png'),fullPage:true});
-const csvDownload=page.waitForEvent('download');await page.locator('#saveCsv').click();const csv=await csvDownload;await csv.saveAs(path.join(root,'export-test.csv'));
 await page.locator('[data-mode=split]').click();await page.screenshot({path:path.join(root,'split.png'),fullPage:true});
 // Identical documents must have no visual or text changes.
 await page.locator('#oldFile').setInputFiles([]);
@@ -127,15 +148,20 @@ for(const [key,mode] of [['2','split'],['3','text'],['1','overlay']]){
   await page.locator('body').press(key);
   await page.waitForFunction(m=>document.querySelector('[data-mode='+m+']').classList.contains('active'),mode);
 }
-const namedWait=page.waitForEvent('download');await page.locator('#savePng').click();
+const namedWait=page.waitForEvent('download');await page.locator('#savePdf').click();
 const named=(await namedWait).suggestedFilename();
-assert.match(named,/^revision-lens-overlay-A\d+-B\d+\.png$/,'Exports must be named after the pages they cover: '+named);
+assert.match(named,/^revision-lens-overlay-A\d+-B\d+\.pdf$/,'Exports must be named after the pages they cover: '+named);
+await page.locator('#fullscreen').click();
+await page.waitForFunction(()=>document.body.classList.contains('is-fullscreen'),null,{timeout:5000});
+assert.equal(await page.locator('#fullscreen span').innerText(),'Exit');
+await page.locator('#fullscreen').click();
+await page.waitForFunction(()=>!document.body.classList.contains('is-fullscreen'),null,{timeout:5000});
 // A blob worker must really start: otherwise PDF.js quietly parses every page
 // on the main thread and the interface locks up on large stacks.
 assert.ok(!consoleMessages.some(m=>/fake worker/i.test(m)),'PDF parsing fell back to the main thread: '+consoleMessages.join(' | '));
 if(errors.length)throw new Error('Page errors: '+errors.join('\n'));
 if(network.length)throw new Error('External requests: '+network.join('\n'));
-const results={browser:await browser.version(),offline:true,externalRequests:network.length,errors,offlineLock,exportName:named,noDemoFlow:true,collapsedSettings:true,tabs:['overlay','split','text'],splitHighlights:splitColours,splitNavigationPreserved:true,first,reportText:text,identical:same,suggestedShift:suggested,excluded,consoleMessages};
+const results={browser:await browser.version(),offline:true,externalRequests:network.length,errors,offlineLock,exportName:named,noDemoFlow:true,collapsedSettings:true,tabs:['overlay','split','text'],splitPanes:splitColours,splitNavigationPreserved:true,first,reportText:text,identical:same,suggestedShift:suggested,excluded,consoleMessages};
 await fs.writeFile(path.join(root,process.env.REVISION_LENS_BROWSER?.includes('Edge')?'edge-results.json':'browser-results.json'),JSON.stringify(results,null,2));
 console.log(JSON.stringify(results,null,2));
 } finally { await browser.close(); }

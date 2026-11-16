@@ -37,7 +37,7 @@ class EmbeddedBinaryDataFactory {
     return decode(assets[key]);
   }
 }
-const state={docs:{},tasks:{},ports:{},names:{},pages:{},a:null,b:null,aligned:null,result:null,mode:'overlay',busy:false,exclusions:[],selecting:false,region:-1,text:[],textWarning:'',scale:2,actualDpi:144,pair:null,
+const state={docs:{},tasks:{},ports:{},names:{},pages:{},layers:{old:true,new:true},a:null,b:null,aligned:null,result:null,mode:'overlay',busy:false,exclusions:[],selecting:false,region:-1,text:[],textWarning:'',scale:2,actualDpi:144,pair:null,
   features:{},rows:[],pins:[],activeRow:-1,job:false,cancelled:false,batchComplete:false};
 const canvas=$('canvas'), annotation=$('annotations');
 const status=(s,type='')=>{ $('status').textContent=s; $('status').className='status '+type; };
@@ -49,14 +49,12 @@ function lock(busy){
   $('compareAll').disabled=busy||!both;
   $('pinPair').disabled=busy||!both;
   $('clearPins').disabled=busy||!state.pins.length;
-  $('saveMap').disabled=busy||!state.rows.length;
-  $('saveAllPdf').disabled=busy||!state.batchComplete;
+  $('savePackage').disabled=busy||!state.batchComplete;
   $('cancel').hidden=!state.job;
   $('cancel').disabled=state.cancelled;
   $('sheetFilter').disabled=busy;
   for(const b of document.querySelectorAll('.sheet-row'))b.disabled=busy;
-  for(const id of ['align','unalign','exclude','clearExclude','savePdf','savePng']) $(id).disabled=busy||!result;
-  $('saveCsv').disabled=busy||!result||!state.text.length;
+  for(const id of ['align','unalign','exclude','clearExclude','savePdf','saveSplitPdf']) $(id).disabled=busy||!result;
   for(const id of ['prevRegion','nextRegion']) $(id).disabled=busy||!state.result?.regions.length;
   $('reset').disabled=busy;
   $('swap').disabled=busy||!both;
@@ -65,10 +63,10 @@ function lock(busy){
 const yieldUi=()=>new Promise(r=>setTimeout(r,20));
 async function run(fn){ if(state.busy)return;lock(true);try{await fn();}catch(e){ console.error(e);status(e.message||'Comparison failed.','error');}finally{lock(false);} }
 function clearResult(){
-  for(const key of ['a','b','base','aligned','overlay','splitOld','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}
+  for(const key of ['a','b','base','aligned','overlay','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}
   state.a=state.b=state.aligned=state.result=null;state.text=[];state.region=-1;state.pair=null;state.exclusions=[];state.selecting=false;
   $('empty').hidden=false;$('visual').hidden=true;$('textView').hidden=true;
-  $('summary').textContent='Ready for the whole stack';$('regionPosition').textContent='—';$('heading').textContent='Let’s spot the plot twists.';
+  $('summary').textContent='Ready to compare';$('regionPosition').textContent='—';$('heading').textContent='Compare two revisions';
   $('exclude').classList.remove('active-exclude');$('exclude').setAttribute('aria-pressed','false');
   annotation.classList.remove('selecting');
 }
@@ -169,7 +167,7 @@ async function getLines(doc,number){
 async function compare(){
   const old=+$('oldPage').value, newer=+$('newPage').value;
   if(!old&&!newer)throw new Error('Choose at least one real sheet to compare.');
-  for(const key of ['a','b','base','aligned','overlay','splitOld','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}state.result=null;
+  for(const key of ['a','b','base','aligned','overlay','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}state.result=null;
   const pair=old+':'+newer;
   if(pair!==state.pair){resetAlign();state.exclusions=[];}
   state.pair=pair;status('Rendering selected pages locally…','busy');await yieldUi();
@@ -201,7 +199,7 @@ function transformB(w=state.w,h=state.h, factor=1){
 }
 async function updateComparison(){
   if(!state.a)return;status('Comparing pixels and grouping review regions…','busy');await yieldUi();
-  for(const key of ['splitOld','splitNew']){if(state[key])state[key].width=state[key].height=0;state[key]=null;}
+  if(state.splitNew){state.splitNew.width=state.splitNew.height=0;state.splitNew=null;}
   const base=makeCanvas(state.w,state.h),ctx=base.getContext('2d',{willReadFrequently:true});ctx.fillStyle='white';ctx.fillRect(0,0,state.w,state.h);ctx.drawImage(state.a,0,0);
   state.base=base;state.aligned=transformB();
   state.result=comparePixels(ctx.getImageData(0,0,state.w,state.h).data,state.aligned.getContext('2d').getImageData(0,0,state.w,state.h).data,state.w,state.h,
@@ -238,32 +236,61 @@ $('align').onclick=()=>run(async()=>{
   $('shiftX').value=(alignValues().x+t.x/f/state.scale).toFixed(2);$('shiftY').value=(alignValues().y+t.y/f/state.scale).toFixed(2);
   await updateComparison();status('Translation suggestion applied. Verify alignment visually; reset it if the result is worse.');
 });
+// Revised-only pixels tinted onto the revised page. The original page is never
+// marked up: it is shown exactly as it was drawn.
+function revisedLayer(){
+  if(!state.splitNew){
+    state.splitNew=makeCanvas(state.w,state.h);
+    const data=state.aligned.getContext('2d').getImageData(0,0,state.w,state.h).data;
+    state.splitNew.getContext('2d').putImageData(
+      new ImageData(highlightSide(data,state.result.mask,'new'),state.w,state.h),0,0);
+  }
+  return state.splitNew;
+}
+// Which document panes are on screen, in A-then-B order.
+function visiblePanes(){
+  const panes=[];
+  if(state.layers.old)panes.push('old');
+  if(state.layers.new)panes.push('new');
+  return panes;
+}
+function paneLabel(side){
+  const page=+$(side==='old'?'oldPage':'newPage').value;
+  return (side==='old'?'A · Original · ':'B · Revised · ')+(page?'page '+page:'no sheet')+
+    (side==='new'?' · changes in blue':' · as drawn');
+}
 function draw(){
   if(!state.result)return;
   $('empty').hidden=true;
   $('visual').hidden=state.mode==='text';$('textView').hidden=state.mode!=='text';
+  $('layerGroup').hidden=state.mode==='text';
   if(state.mode==='text')return;
-  const split=state.mode==='split',gap=30;
-  canvas.width=split?state.w*2+gap:state.w;canvas.height=state.h;
+  const split=state.mode==='split',gap=30,panes=visiblePanes();
+  const columns=split?Math.max(1,panes.length):1;
+  canvas.width=state.w*columns+gap*(columns-1);canvas.height=state.h;
   const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);
   if(split){
-    if(!state.splitOld){
-      state.splitOld=makeCanvas(state.w,state.h);state.splitNew=makeCanvas(state.w,state.h);
-      const oldData=state.base.getContext('2d').getImageData(0,0,state.w,state.h).data;
-      const newData=state.aligned.getContext('2d').getImageData(0,0,state.w,state.h).data;
-      state.splitOld.getContext('2d').putImageData(new ImageData(highlightSide(oldData,state.result.mask,'old'),state.w,state.h),0,0);
-      state.splitNew.getContext('2d').putImageData(new ImageData(highlightSide(newData,state.result.mask,'new'),state.w,state.h),0,0);
-    }
-    ctx.drawImage(state.splitOld,0,0);ctx.fillStyle='#e9edf2';ctx.fillRect(state.w,0,gap,state.h);ctx.drawImage(state.splitNew,state.w+gap,0);
+    panes.forEach((side,i)=>{
+      const x=i*(state.w+gap);
+      if(i)  {ctx.fillStyle='#e2e6ea';ctx.fillRect(x-gap,0,gap,state.h);}
+      ctx.drawImage(side==='old'?state.base:revisedLayer(),x,0);
+    });
   }
-  else ctx.drawImage(state.overlay,0,0);
+  // Overlay shows both documents merged; a single layer shows that document alone.
+  else if(panes.length===2)ctx.drawImage(state.overlay,0,0);
+  else if(panes.length===1)ctx.drawImage(panes[0]==='old'?state.base:revisedLayer(),0,0);
   annotation.width=canvas.width;annotation.height=canvas.height;
   const available=Math.max(250,$('stage').clientWidth-46);
   const z=$('zoom').value==='fit'?available/canvas.width:+$('zoom').value;
   for(const c of [canvas,annotation]){c.style.width=canvas.width*z+'px';c.style.height=canvas.height*z+'px';}
-  $('splitLabels').hidden=!split;$('splitLabels').style.width=canvas.width*z+'px';
-  $('splitOldLabel').textContent='A · Original · '+(+$('oldPage').value?'page '+$('oldPage').value:'no sheet')+' · changes in red';
-  $('splitNewLabel').textContent='B · Revised · '+(+$('newPage').value?'page '+$('newPage').value:'no sheet')+' · changes in blue';
+  const labels=$('splitLabels');
+  labels.hidden=!split||!panes.length;
+  labels.style.width=canvas.width*z+'px';
+  labels.style.gridTemplateColumns='1fr '.repeat(columns).trim();
+  $('splitOldLabel').hidden=!split||!state.layers.old;
+  $('splitNewLabel').hidden=!split||!state.layers.new;
+  $('splitOldLabel').textContent=paneLabel('old');
+  $('splitNewLabel').textContent=paneLabel('new');
   $('canvasWrap').style.width=canvas.width*z+'px';$('canvasWrap').style.height=canvas.height*z+'px';
   paintAnnotations();
 }
@@ -271,14 +298,28 @@ function paintAnnotations(drag){
   const ctx=annotation.getContext('2d');ctx.clearRect(0,0,annotation.width,annotation.height);
   const z=annotation.clientWidth/annotation.width;
   ctx.lineWidth=2/Math.max(.1,z);
-  if(state.mode==='overlay'||state.mode==='split'){
-    const offsets=state.mode==='split'?[0,state.w+30]:[0];
-    for(const offset of offsets){
-    state.result.regions.forEach((r,i)=>{ctx.strokeStyle=i===state.region?'#ee9200':state.mode==='split'?(offset?'#007d9caa':'#cf2c57aa'):'#e4a43899';ctx.setLineDash(i===state.region?[]:[6/z,4/z]);ctx.strokeRect(r.x+offset,r.y,r.w,r.h);});
-    ctx.setLineDash([]);
-    for(const r of state.exclusions){ctx.fillStyle='#e5b45433';ctx.strokeStyle='#ba8a27';ctx.fillRect(r.x*state.w+offset,r.y*state.h,r.w*state.w,r.h*state.h);ctx.strokeRect(r.x*state.w+offset,r.y*state.h,r.w*state.w,r.h*state.h);}
+  if(state.mode!=='text'){
+    // Change regions and ignored areas are drawn on the revised document only.
+    const panes=visiblePanes();
+    const index=state.mode==='split'?panes.indexOf('new'):(panes.length?0:-1);
+    const offset=index<0?null:index*(state.w+30);
+    if(offset!==null&&state.layers.new){
+      state.result.regions.forEach((r,i)=>{
+        const current=i===state.region;
+        ctx.strokeStyle=current?'#b45309':'#b4530988';
+        ctx.lineWidth=(current?3:2)/Math.max(.1,z);
+        ctx.setLineDash(current?[]:[6/z,4/z]);
+        ctx.strokeRect(r.x+offset,r.y,r.w,r.h);
+      });
+      ctx.lineWidth=2/Math.max(.1,z);
+      ctx.setLineDash([]);
+      for(const r of state.exclusions){
+        ctx.fillStyle='#b4530922';ctx.strokeStyle='#b45309';
+        ctx.fillRect(r.x*state.w+offset,r.y*state.h,r.w*state.w,r.h*state.h);
+        ctx.strokeRect(r.x*state.w+offset,r.y*state.h,r.w*state.w,r.h*state.h);
+      }
     }
-    if(drag){ctx.strokeStyle='#ae7415';ctx.strokeRect(drag.x,drag.y,drag.w,drag.h);}
+    if(drag){ctx.strokeStyle='#b45309';ctx.strokeRect(drag.x,drag.y,drag.w,drag.h);}
   }
   $('regionPosition').textContent=state.result.regions.length?(state.region<0?'0':state.region+1)+' / '+state.result.regions.length:'0 / 0';
 }
@@ -314,7 +355,7 @@ annotation.onpointercancel=()=>{dragStart=null;if(state.result)paintAnnotations(
 $('clearExclude').onclick=()=>run(async()=>{state.exclusions=[];await updateComparison();});
 function renderText(){
   const root=$('textView');root.replaceChildren();const intro=document.createElement('p');intro.className='text-intro';
-  intro.textContent=state.textWarning||'Extracted text from the selected page pair. Whitespace is normalized; no OCR or part-number matching is performed. Reordered rows can appear as removals and additions. Text changes are independent of visual ignore areas and sensitivity.';root.append(intro);
+  intro.textContent=state.textWarning||'Extracted text for this sheet pair, with whitespace normalized. An edited line reads as one removal plus one addition, and so does reordering. Scanned or outlined text may yield nothing — there is no OCR. Ignored areas and the sensitivity settings do not affect this list.';root.append(intro);
   if(!state.text.length){const empty=document.createElement('p');empty.className='text-empty';empty.textContent=state.textWarning?'Text comparison unavailable.':'No extracted-text differences. Scanned or outlined text may have no extractable content.';root.append(empty);return;}
   for(const change of state.text){const row=document.createElement('div');row.className='text-row '+change.type;const type=document.createElement('span');type.textContent=change.type;const text=document.createElement('p');text.textContent=change.text;row.append(type,text);root.append(row);}
 }
@@ -323,44 +364,126 @@ function exportName(kind,extension){
   return 'revision-lens-'+kind+'-A'+(a||'none')+'-B'+(b||'none')+'.'+extension;
 }
 function download(bytes,type,name){const url=URL.createObjectURL(new Blob([bytes],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
-function exportCanvas(){
-  const w=state.w,header=Math.max(120,Math.round(w*.08)),c=makeCanvas(w,state.h+header),ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,w,c.height);
-  const row=state.rows[state.activeRow];
-  ctx.fillStyle='#263548';ctx.font='bold '+Math.round(w*.018)+'px Arial';ctx.fillText('Revision Lens | '+(row?.status||'visual comparison')+(row?.review?' | CHECK SHEET MATCH':''),w*.025,header*.3);
-  ctx.font=Math.max(11,Math.round(w*.010))+'px Arial';
-  const fit=(s,max)=>{while(s.length>5&&ctx.measureText(s).width>max)s=s.slice(0,-5)+'…';return s;};
-  ctx.fillText(fit('A: '+state.names.old+' [page '+(+$('oldPage').value||'not present')+']   |   B: '+state.names.new+' [page '+(+$('newPage').value||'not present')+']',w*.95),w*.025,header*.5);
-  const t=alignValues();ctx.fillText('Red: original only | Blue: revised only | '+state.result.regions.length+' regions | '+Math.round(state.actualDpi)+' dpi',w*.025,header*.68);
-  ctx.fillText(fit('B shift '+t.x+','+t.y+' pt; rotation '+t.rotation+' deg; scale '+t.scale+'%; threshold '+$('threshold').value+'%; tolerance '+$('tolerance').value+' px; ignored areas '+state.exclusions.length,w*.95),w*.025,header*.85);
-  ctx.drawImage(state.overlay,0,header);ctx.strokeStyle='#c18e30';ctx.lineWidth=1;
-  for(const r of state.result.regions)ctx.strokeRect(r.x,r.y+header,r.w,r.h);
-  ctx.setLineDash([6,4]);for(const r of state.exclusions)ctx.strokeRect(r.x*w,r.y*state.h+header,r.w*w,r.h*state.h);
+const EXPORT_GAP=36;
+
+// Each export view is built explicitly, so what is saved never depends on which
+// layers happen to be switched on, or on the tab you are looking at.
+function overlayBody(){
+  const c=makeCanvas(state.w,state.h),ctx=c.getContext('2d');
+  ctx.drawImage(state.overlay,0,0);
+  ctx.lineWidth=2;ctx.strokeStyle='#b45309';
+  for(const r of state.result.regions)ctx.strokeRect(r.x,r.y,r.w,r.h);
+  ctx.setLineDash([7,5]);
+  for(const r of state.exclusions)ctx.strokeRect(r.x*state.w,r.y*state.h,r.w*state.w,r.h*state.h);
   return c;
 }
-$('savePng').onclick=()=>run(async()=>{const c=exportCanvas();const blob=await new Promise(r=>c.toBlob(r,'image/png'));if(!blob)throw new Error('Image export failed.');download(blob,'image/png',exportName('overlay','png'));status('Overlay PNG saved for the selected page pair.');});
+function splitBody(){
+  const width=state.w*2+EXPORT_GAP,c=makeCanvas(width,state.h),ctx=c.getContext('2d');
+  ctx.fillStyle='white';ctx.fillRect(0,0,width,state.h);
+  ctx.drawImage(state.base,0,0);                       // original, exactly as drawn
+  ctx.fillStyle='#e2e6ea';ctx.fillRect(state.w,0,EXPORT_GAP,state.h);
+  const offset=state.w+EXPORT_GAP;
+  ctx.drawImage(revisedLayer(),offset,0);
+  ctx.lineWidth=2;ctx.strokeStyle='#b45309';
+  for(const r of state.result.regions)ctx.strokeRect(r.x+offset,r.y,r.w,r.h);
+  ctx.setLineDash([7,5]);ctx.strokeStyle='#b45309';
+  for(const r of state.exclusions)ctx.strokeRect(r.x*state.w+offset,r.y*state.h,r.w*state.w,r.h*state.h);
+  return c;
+}
+// Text changes are paginated onto sheet-sized pages so the package stays uniform.
+function textBodies(){
+  const w=state.w,h=state.h,unit=Math.max(1,w/1400);
+  const size=Math.round(16*unit),pad=Math.round(34*unit),lead=Math.round(size*1.5);
+  const labelWidth=Math.round(130*unit),textWidth=w-pad*2-labelWidth;
+  const measure=makeCanvas(8,8).getContext('2d');measure.font=size+'px Arial';
+  const entries=state.text.map(change=>{
+    const words=String(change.text).split(/\s+/).filter(Boolean),wrapped=[];let line='';
+    for(const word of words){
+      const candidate=line?line+' '+word:word;
+      if(line&&measure.measureText(candidate).width>textWidth){wrapped.push(line);line=word;}
+      else line=candidate;
+    }
+    wrapped.push(line||'(blank line)');
+    return {type:change.type,wrapped};
+  });
+  const pages=[];let ctx=null,y=0;
+  const newPage=()=>{
+    const c=makeCanvas(w,h);ctx=c.getContext('2d');
+    ctx.fillStyle='white';ctx.fillRect(0,0,w,h);ctx.textBaseline='top';
+    y=pad;pages.push(c);
+  };
+  newPage();
+  if(!entries.length){
+    ctx.fillStyle='#64748b';ctx.font=size+'px Arial';
+    ctx.fillText(state.textWarning||'No extracted-text differences on this sheet.',pad,y);
+    return pages;
+  }
+  for(const entry of entries){
+    const block=entry.wrapped.length*lead+Math.round(12*unit);
+    if(y+block>h-pad)newPage();
+    ctx.fillStyle=entry.type==='Added'?'#f1fafd':'#fef4f6';
+    ctx.fillRect(pad/2,y-Math.round(5*unit),w-pad,block);
+    ctx.fillStyle=entry.type==='Added'?'#036680':'#a52f51';
+    ctx.font='bold '+size+'px Arial';ctx.fillText(entry.type,pad,y);
+    ctx.font=size+'px Arial';
+    entry.wrapped.forEach((line,i)=>ctx.fillText(line,pad+labelWidth,y+i*lead));
+    y+=block;
+  }
+  return pages;
+}
+function withHeader(body,title){
+  const band=Math.max(120,Math.round(state.w*.075));
+  const c=makeCanvas(body.width,body.height+band),ctx=c.getContext('2d');
+  ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);
+  const row=state.rows[state.activeRow],left=state.w*.025;
+  const fit=(text,max)=>{while(text.length>5&&ctx.measureText(text).width>max)text=text.slice(0,-5)+'…';return text;};
+  ctx.fillStyle='#0f172a';ctx.font='bold '+Math.round(state.w*.018)+'px Arial';
+  ctx.fillText('Revision Lens · '+title+(row?.review?'  ·  CHECK SHEET MATCH':''),left,band*.28);
+  ctx.fillStyle='#334155';ctx.font=Math.max(11,Math.round(state.w*.0105))+'px Arial';
+  ctx.fillText(fit('A: '+state.names.old+' [page '+(+$('oldPage').value||'not present')+']    B: '+
+    state.names.new+' [page '+(+$('newPage').value||'not present')+']',state.w*.95),left,band*.50);
+  const t=alignValues();
+  ctx.fillText(fit('Red: original only · Blue: revised only · '+state.result.regions.length+' regions · '+
+    Math.round(state.actualDpi)+' dpi · threshold '+$('threshold').value+'% · tolerance '+$('tolerance').value+
+    ' px · B shift '+t.x+','+t.y+' pt, rotation '+t.rotation+'°, scale '+t.scale+'% · ignored areas '+
+    state.exclusions.length,state.w*.95),left,band*.72);
+  ctx.strokeStyle='#cbd5e1';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,band-1);ctx.lineTo(c.width,band-1);ctx.stroke();
+  ctx.drawImage(body,0,band);
+  body.width=body.height=0;
+  return c;
+}
+function exportPages(kind){
+  const label=state.rows[state.activeRow]?.status||'comparison';
+  if(kind==='overlay')return [withHeader(overlayBody(),'Overlay · '+label)];
+  if(kind==='split')return [withHeader(splitBody(),'Side by side · '+label)];
+  return textBodies().map((c,i)=>withHeader(c,'Text changes'+(i?' (continued)':'')+' · '+label));
+}
 async function jpegBytes(c,quality){
   const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',quality));
   if(!blob)throw new Error('Image encoding failed. Try a lower render quality.');
   return new Uint8Array(await blob.arrayBuffer());
 }
-async function imagePdf(c){
-  const jpeg=await jpegBytes(c,.95);const enc=new TextEncoder();
-  const width=state.w/state.scale,height=c.height/state.scale;
-  const stream='q\n'+width.toFixed(3)+' 0 0 '+height.toFixed(3)+' 0 0 cm\n/Im0 Do\nQ\n';
-  const objs=[enc.encode('<< /Type /Catalog /Pages 2 0 R >>'),enc.encode('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'),
-    enc.encode('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+width.toFixed(3)+' '+height.toFixed(3)+'] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>'),
-    [enc.encode('<< /Type /XObject /Subtype /Image /Width '+c.width+' /Height '+c.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpeg.length+' >>\nstream\n'),jpeg,enc.encode('\nendstream')],
-    enc.encode('<< /Length '+enc.encode(stream).length+' >>\nstream\n'+stream+'endstream')];
-  const chunks=[enc.encode('%PDF-1.4\n')],offsets=[0];let length=chunks[0].length;
-  objs.forEach((obj,i)=>{offsets.push(length);for(const part of [enc.encode((i+1)+' 0 obj\n'),...(Array.isArray(obj)?obj:[obj]),enc.encode('\nendobj\n')]){chunks.push(part);length+=part.length;}});
-  chunks.push(enc.encode('xref\n0 6\n0000000000 65535 f \n'+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+length+'\n%%EOF'));
-  return new Blob(chunks,{type:'application/pdf'});
+async function collectPages(parts,canvases,quality){
+  for(const c of canvases){
+    const jpeg=await jpegBytes(c,quality);
+    parts.bytes+=jpeg.length;
+    if(parts.bytes>200*1024*1024)throw new Error('Export exceeds the 200 MB image-data limit. Use a lower render quality and compare again.');
+    parts.pages.push({jpeg,pixelsW:c.width,pixelsH:c.height,width:c.width/state.scale,height:c.height/state.scale});
+    c.width=c.height=0;
+  }
 }
-$('savePdf').onclick=()=>run(async()=>{download(await imagePdf(exportCanvas()),'application/pdf',exportName('overlay','pdf'));status('Rasterized overlay PDF saved for the selected page pair.');});
-$('saveCsv').onclick=()=>{
-  const rows=[['Type','Extracted line','Text','Original file','Original page','Revised file','Revised page'],...state.text.map(c=>[c.type,c.line,c.text,state.names.old,$('oldPage').value,state.names.new,$('newPage').value])];
-  download('\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8',exportName('text-changes','csv'));
-};
+async function savePdfOf(kind,name,message){
+  const parts={pages:[],bytes:0};
+  await collectPages(parts,exportPages(kind),.95);
+  download(packImagePages(parts.pages),'application/pdf',name);
+  status(message);
+}
+$('savePdf').onclick=()=>run(()=>savePdfOf('overlay',exportName('overlay','pdf'),
+  'Overlay PDF saved for this sheet.'));
+$('saveSplitPdf').onclick=()=>run(()=>savePdfOf('split',exportName('side-by-side','pdf'),
+  'Side by side PDF saved for this sheet.'));
+
 $('reset').onclick=()=>run(async()=>{
   for(const task of Object.values(state.tasks))await task.destroy();
   for(const port of Object.values(state.ports))port?.terminate();
@@ -369,8 +492,8 @@ $('reset').onclick=()=>run(async()=>{
   $('sheetPanel').hidden=true;$('stackStats').hidden=true;$('progressTrack').hidden=true;$('sheetList').replaceChildren();
   for(const side of ['old','new']){$(side+'File').value='';$(side+'Name').textContent=side==='old'?'Choose original PDF':'Choose revised PDF';$(side+'Meta').textContent='Drop a PDF here, or click to choose';$(side+'Page').replaceChildren(new Option('1','1'));}
   state.mode='overlay';for(const b of document.querySelectorAll('[data-mode]'))b.classList.toggle('active',b.dataset.mode==='overlay');
-  $('alignmentControls').open=false;document.querySelector('.manual').open=false;
-  status('Session cleared. Reload or close this tab to release remaining browser-managed resources.');$('summary').textContent='Waiting for PDFs';
+  for(const section of document.querySelectorAll('details.manual,details.adjust'))section.open=false;
+  status('Session cleared. Close or reload the tab to release anything the browser still holds.');$('summary').textContent='Waiting for PDFs';
 });
 window.addEventListener('error',e=>status('Something went wrong: '+e.message,'error'));
 window.addEventListener('unhandledrejection',e=>status('Something went wrong: '+(e.reason?.message||e.reason),'error'));
@@ -498,14 +621,6 @@ $('pinPair').onclick=()=>run(async()=>{
 });
 $('clearPins').onclick=()=>run(async()=>{state.pins=[];await compareAll();});
 
-// Neutralize spreadsheet formula prefixes in every user-controlled string.
-function csvCell(s){return '"'+String(/^(\s*[=+\-@]|[\t\r])/.test(String(s))?"'"+s:s).replaceAll('"','""')+'"';}
-$('saveMap').onclick=()=>{
-  const rows=[['Original page','Revised page','Result','Review match','Similarity (not probability)','Reason','Regions','Original-only pixels','Revised-only pixels','Text changes','DPI','Original file','Revised file','Run complete'],
-    ...state.rows.map(r=>[r.old||'',r.new||'',r.status,r.review?'Yes':'No',r.old&&r.new?r.score.toFixed(3):'',r.error||r.reason,r.regions??'',r.removed??'',r.added??'',r.textChanges??'',r.dpi?.toFixed(1)||'',state.names.old,state.names.new,state.batchComplete?'Yes':'No'])];
-  download('\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8','revision-lens-sheet-map.csv');
-};
-
 function packImagePages(pages){
   const enc=new TextEncoder(),objects=[enc.encode('<< /Type /Catalog /Pages 2 0 R >>'),enc.encode('<< /Type /Pages /Count '+pages.length+' /Kids ['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] >>')];
   for(const [i,p]of pages.entries()){
@@ -519,27 +634,63 @@ function packImagePages(pages){
   parts.push(enc.encode('xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n'+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+(objects.length+1)+' /Root 1 0 R >>\nstartxref\n'+length+'\n%%EOF'));
   return new Blob(parts,{type:'application/pdf'});
 }
-$('saveAllPdf').onclick=()=>run(async()=>{
-  state.job=true;state.cancelled=false;lock(true);const previous=state.activeRow,parts=[];let bytes=0;
+
+// Complete package: every mapped sheet as overlay, side by side and text changes.
+$('savePackage').onclick=()=>run(async()=>{
+  state.job=true;state.cancelled=false;lock(true);
+  const previous=state.activeRow,parts={pages:[],bytes:0};
   try{
     for(let i=0;i<state.rows.length;i++){
       if(state.cancelled){status('Export stopped. No partial PDF was saved.');return;}
-      progress(100*i/state.rows.length,'Exporting comparison '+(i+1)+' / '+state.rows.length);await openRow(i);await yieldUi();
-      const c=exportCanvas(),jpeg=await jpegBytes(c,.94);bytes+=jpeg.length;
-      if(bytes>200*1024*1024)throw new Error('Export exceeds the 200 MB image-data limit. Use a lower render quality and compare again.');
-      parts.push({jpeg,pixelsW:c.width,pixelsH:c.height,width:c.width/state.scale,height:c.height/state.scale});c.width=c.height=0;
+      progress(100*i/state.rows.length,'Exporting sheet '+(i+1)+' / '+state.rows.length);
+      await openRow(i);await yieldUi();
+      for(const kind of ['overlay','split','text'])await collectPages(parts,exportPages(kind),.92);
     }
     if(state.cancelled){status('Export stopped. No partial PDF was saved.');return;}
-    download(packImagePages(parts),'application/pdf','revision-lens-all-sheets.pdf');progress(100,'All sheets exported');status('Saved a '+parts.length+'-page comparison PDF, including added and removed sheets.');
+    download(packImagePages(parts.pages),'application/pdf','revision-lens-complete-package.pdf');
+    progress(100,'Complete package exported');
+    status('Saved a '+parts.pages.length+'-page package covering '+state.rows.length+
+      ' sheets: overlay, side by side and text changes for each.');
   }finally{
     const message=$('status').textContent;state.job=false;
-    if(previous>=0)try{await openRow(previous);}catch{}status(message);lock(true);
+    if(previous>=0)try{await openRow(previous);}catch{}
+    status(message);lock(true);
   }
 });
+
+// ------------------------------------------------------------------ layers
+function setLayer(side,on){
+  const other=side==='old'?state.layers.new:state.layers.old;
+  if(!on&&!other){status('Keep at least one document visible.');return;}
+  state.layers[side]=on;
+  const button=$(side==='old'?'layerOld':'layerNew');
+  button.classList.toggle('on',on);
+  button.setAttribute('aria-pressed',String(on));
+  draw();
+}
+$('layerOld').onclick=()=>setLayer('old',!state.layers.old);
+$('layerNew').onclick=()=>setLayer('new',!state.layers.new);
+
+// ------------------------------------------------------------- full screen
+function toggleFullscreen(){
+  if(document.fullscreenElement)document.exitFullscreen();
+  else $('viewerPane').requestFullscreen?.().catch(e=>status('Full screen was refused: '+e.message,'error'));
+}
+$('fullscreen').onclick=toggleFullscreen;
+document.addEventListener('fullscreenchange',()=>{
+  const on=!!document.fullscreenElement;
+  document.body.classList.toggle('is-fullscreen',on);
+  $('fullscreen').querySelector('span').textContent=on?'Exit':'Full screen';
+  $('fullscreen').setAttribute('aria-label',on?'Exit full screen':'Full screen');
+  // Fit-width needs the new pane size, which is only settled after the transition.
+  setTimeout(()=>{if(state.result)draw();},60);
+});
+
 lock(false);
 
 // Keyboard shortcuts: 1/2/3 switch view, n/p step through change regions,
-// [ and ] step through the sheet map. Ignored while a field has focus.
+// [ and ] step through the sheet map, f toggles full screen. Ignored while a
+// field has focus.
 function stepRow(direction){
   if(state.busy||!state.rows.length)return;
   const visible=[...document.querySelectorAll('.sheet-row')].map(button=>+button.dataset.row);
@@ -554,6 +705,6 @@ document.addEventListener('keydown',event=>{
   const key=event.key.length===1?event.key.toLowerCase():event.key;
   const views={'1':'overlay','2':'split','3':'text'};
   if(Object.hasOwn(views,key)){if(state.result){showMode(views[key]);event.preventDefault();}return;}
-  const actions={n:()=>goRegion(1),p:()=>goRegion(-1),']':()=>stepRow(1),'[':()=>stepRow(-1)};
+  const actions={n:()=>goRegion(1),p:()=>goRegion(-1),']':()=>stepRow(1),'[':()=>stepRow(-1),f:toggleFullscreen};
   if(Object.hasOwn(actions,key)){actions[key]();event.preventDefault();}
 });

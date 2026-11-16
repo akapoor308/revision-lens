@@ -63,7 +63,7 @@ PDF.js is configured with `useWorkerFetch: false` and a custom `BinaryDataFactor
 
 1. Update the version in `package.json`, the version badge in `source/template.html` and `CHANGELOG.md` together.
 2. Install from the lockfile, then run `npm test`, `npm run test:browser` and `npm run test:batch`.
-3. Check insertion, deletion, equal-count edits, scans, blank ambiguity, pins, cancellation, the exports and the identical-document case.
+3. Check insertion, deletion, equal-count edits, scans, blank ambiguity, pins, cancellation, the three exports and the identical-document case. Confirm the original pane carries no change marking and that full screen keeps the toolbar.
 4. Reopen the generated PDFs to confirm page counts and structure.
 5. Rebuild `dist/`, keep the license files alongside it, and refresh the screenshots in `docs/images/`.
 6. Package the standalone HTML with the documentation and licenses. Keep test fixtures out of the release.

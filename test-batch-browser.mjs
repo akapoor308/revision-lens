@@ -32,9 +32,13 @@ try{
   await page.locator('.sheet-row[data-old="5"][data-new="6"]').click();
   await page.waitForFunction(()=>document.querySelector('#heading').textContent==='Original 5 → Revised 6');
   await page.screenshot({path:'batch-paired.png',fullPage:true});
-  const pdfWait=page.waitForEvent('download',{timeout:120000});await page.locator('#saveAllPdf').click();const pdf=await pdfWait;await pdf.saveAs('batch-export.pdf');
-  const csvWait=page.waitForEvent('download');await page.locator('#saveMap').click();const csv=await csvWait;await csv.saveAs('batch-map.csv');
-  assert.match(await fs.readFile('batch-map.csv','utf8'),/"5","6"/);
+  // The complete package carries three pages per mapped sheet.
+  const pdfWait=page.waitForEvent('download',{timeout:240000});await page.locator('#savePackage').click();
+  const pdf=await pdfWait;await pdf.saveAs('batch-export.pdf');
+  assert.match(pdf.suggestedFilename(),/^revision-lens-complete-package\.pdf$/);
+  const packagePages=(await fs.readFile('batch-export.pdf','latin1')).match(/\/Type\s*\/Page[^s]/g)?.length||0;
+  assert.equal(packagePages,results.insert.length*3,
+    'Package must hold overlay, side by side and text pages for all '+results.insert.length+' sheets.');
   await load('fictional-stack-19.pdf','fictional-stack-deleted-18.pdf');
   results.delete=await rows();assert.deepEqual(results.delete.filter(r=>!r.new).map(r=>r.old),[5]);
   assert.equal(results.delete.find(r=>r.old===6).new,5);assert.equal(results.delete.filter(r=>!r.old).length,0);
@@ -61,7 +65,7 @@ try{
   await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Both PDFs loaded.'));
   await page.locator('#compareAll').click();await page.locator('#cancel').click();
   await page.waitForFunction(()=>/Stopped while indexing|Comparison stopped/.test(document.querySelector('#status').textContent),null,{timeout:60000});
-  assert.equal(await page.locator('#saveAllPdf').isDisabled(),true);results.cancelled=await page.locator('#status').innerText();
+  assert.equal(await page.locator('#savePackage').isDisabled(),true);results.cancelled=await page.locator('#status').innerText();
   assert.deepEqual(errors,[]);assert.deepEqual(network,[]);
   const evidence={browser:await browser.version(),offline:true,externalRequests:network.length,errors,...results};
   await fs.writeFile(process.env.REVISION_LENS_BROWSER?.includes('Edge')?'batch-edge-results.json':'batch-browser-results.json',JSON.stringify(evidence,null,2));

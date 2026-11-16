@@ -18,42 +18,218 @@
 </script>
 <title>Revision Lens | Local PDF comparison</title><style>/*STYLE*/</style></head>
 <body>
-<header><div class="brand"><span class="brand-icon">◫<i></i></span><div><strong>Revision Lens<span class="version">0.4</span></strong><span>Big stacks. Little changes. All local.</span></div></div><div class="header-actions"><span class="privacy"><i></i> Offline & on your side</span><button id="reset" class="quiet">Clear session</button></div></header>
-<div class="app-shell"><aside class="controls">
-<div class="section-label">01 / SELECT REVISIONS</div>
-<label class="file-card old"><span class="file-tag">A · ORIGINAL</span><strong id="oldName">Choose original PDF</strong><small id="oldMeta">Drop a PDF here, or click to choose</small><input id="oldFile" type="file" accept="application/pdf,.pdf" aria-label="Original PDF"></label>
-<label class="file-card newer"><span class="file-tag">B · REVISED</span><strong id="newName">Choose revised PDF</strong><small id="newMeta">Drop a PDF here, or click to choose</small><input id="newFile" type="file" accept="application/pdf,.pdf" aria-label="Revised PDF"></label>
-<div class="swap-row"><button id="swap" class="quiet" disabled>⇅ Swap original and revised</button></div>
-<label class="wide">Render quality<select id="quality"><option value="100">100 dpi · quick review</option><option value="144" selected>144 dpi · standard</option><option value="200">200 dpi · finer detail</option></select></label>
-<button id="compareAll" class="primary wide" disabled>Compare all sheets <span>✦</span></button>
-<button id="cancel" class="wide" hidden>Stop after current sheet</button>
-<p class="hint">One click for the full stack. Added or removed sheets get their own place in the sheet map.</p>
-<details class="manual"><summary>Manual pairing & match corrections</summary><div class="row"><label>Original page<select id="oldPage" aria-label="Original page"><option>1</option></select></label><label>Revised page<select id="newPage" aria-label="Revised page"><option>1</option></select></label></div><button id="compare" class="wide" disabled>Compare this pair</button><button id="pinPair" class="wide" disabled>Pin this match & rematch all</button><button id="clearPins" class="wide" disabled>Clear pinned matches</button><p class="hint">For uncertain matches, choose the right pages and pin them. Pins preserve sheet order. Choose “No sheet” to inspect a whole added or removed page manually.</p></details>
-<details id="alignmentControls" class="adjustments"><summary>Align & Filter</summary>
-<div class="row"><label>X shift (pt)<input id="shiftX" type="number" value="0" step="0.5" min="-2000" max="2000"></label><label>Y shift (pt)<input id="shiftY" type="number" value="0" step="0.5" min="-2000" max="2000"></label></div>
-<div class="row"><label>Rotation (°)<input id="rotation" type="number" value="0" step="0.1" min="-180" max="180"></label><label>Scale (%)<input id="scale" type="number" value="100" step="0.1" min="20" max="500"></label></div>
-<div class="row"><button id="align" disabled>Suggest shift</button><button id="unalign" disabled>Reset alignment</button></div>
-<p class="hint">Transforms apply to B, around its page centre. Shift suggestion handles translation only; inspect the result.</p>
-<label class="wide">Difference threshold <span id="thresholdValue">18%</span><input id="threshold" type="range" min="3" max="60" value="18"></label>
-<label class="wide">Line-edge tolerance<select id="tolerance"><option value="0">0 px · most sensitive</option><option value="1" selected>1 px · suppress tiny edge shifts</option><option value="2">2 px · more suppression</option></select></label>
-<div class="row"><button id="exclude" disabled aria-pressed="false">Ignore an area</button><button id="clearExclude" disabled>Clear areas</button></div>
-<p class="hint" id="excludeHint">Draw a rectangle to exclude dates or title blocks from this page pair.</p>
-</details>
-<div class="section-label spaced">SAVE RESULTS</div>
-<div class="row"><button id="savePdf" disabled>Overlay PDF</button><button id="savePng" disabled>Overlay PNG</button></div><button id="saveCsv" class="wide" disabled>Text changes CSV</button>
-<button id="saveMap" class="wide" disabled>Whole-document summary CSV</button><button id="saveAllPdf" class="wide" disabled>All sheets comparison PDF</button>
-<p class="hint">Overlay and text exports cover the selected row. The whole-document PDF includes every matched, added and removed sheet. PDFs are rasterized.</p>
-<details><summary>Scope & limitations</summary><p>Automatic matching uses text, visual fingerprints and document order. Blank or repetitive sheets and heavily revised pages can be ambiguous; review flagged matches. Reordered sheets may appear as removals/additions. No OCR, part-number matching, vector editing or collaboration. PDF annotations and comments are excluded. Visual regions are review aids, not verified engineering changes. Limits: 150 MB per PDF, 250,000 page-pair candidates per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet. Only local, unencrypted PDFs are supported.</p><p>Uses Mozilla PDF.js 6.4.299. Custom application code is MIT licensed; bundled components retain their own licenses in the distribution package.</p></details>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">◫</span>
+    <span class="brand-text"><strong>Revision Lens</strong><span class="version">0.5</span></span>
+  </div>
+  <div class="header-actions">
+    <span class="offline-badge"><i aria-hidden="true"></i>Offline · nothing leaves this computer</span>
+    <button id="reset" class="ghost">Clear session</button>
+  </div>
+</header>
+
+<div class="app-shell">
+
+<aside class="rail" aria-label="Controls">
+
+  <section class="rail-group">
+    <h2 class="rail-title">1 · Choose revisions</h2>
+    <label class="file-card old">
+      <span class="file-tag">A · Original</span>
+      <strong id="oldName">Choose original PDF</strong>
+      <small id="oldMeta">Drop a PDF here, or click to choose</small>
+      <input id="oldFile" type="file" accept="application/pdf,.pdf" aria-label="Original PDF">
+    </label>
+    <label class="file-card newer">
+      <span class="file-tag">B · Revised</span>
+      <strong id="newName">Choose revised PDF</strong>
+      <small id="newMeta">Drop a PDF here, or click to choose</small>
+      <input id="newFile" type="file" accept="application/pdf,.pdf" aria-label="Revised PDF">
+    </label>
+    <button id="swap" class="ghost wide" disabled>Swap A and B</button>
+  </section>
+
+  <section class="rail-group">
+    <h2 class="rail-title">2 · Compare</h2>
+    <label class="field">Render quality
+      <select id="quality">
+        <option value="100">100 dpi · quick review</option>
+        <option value="144" selected>144 dpi · standard</option>
+        <option value="200">200 dpi · finer detail</option>
+      </select>
+    </label>
+    <button id="compareAll" class="primary wide" disabled>Compare all sheets</button>
+    <button id="cancel" class="wide" hidden>Stop after this sheet</button>
+    <p class="hint">Every sheet is matched by content, so inserted and removed sheets keep their place.</p>
+  </section>
+
+  <section class="rail-group">
+    <h2 class="rail-title">3 · Save results</h2>
+    <button id="savePdf" class="wide" disabled>Overlay PDF<small>This sheet</small></button>
+    <button id="saveSplitPdf" class="wide" disabled>Side by side PDF<small>This sheet</small></button>
+    <button id="savePackage" class="wide" disabled>Complete package PDF<small>Every sheet · overlay, side by side and text changes</small></button>
+    <p class="hint">PDF exports are rasterized images of what you see on screen.</p>
+  </section>
+
+  <details class="manual">
+    <summary>Manual pairing &amp; corrections</summary>
+    <div class="row">
+      <label class="field">Original page<select id="oldPage" aria-label="Original page"><option>1</option></select></label>
+      <label class="field">Revised page<select id="newPage" aria-label="Revised page"><option>1</option></select></label>
+    </div>
+    <button id="compare" class="wide" disabled>Compare this pair</button>
+    <button id="pinPair" class="wide" disabled>Pin match &amp; rematch all</button>
+    <button id="clearPins" class="wide" disabled>Clear pinned matches</button>
+    <p class="hint">When a pairing looks wrong, choose the right pages and pin them. Choose “No sheet” to inspect an added or removed sheet on its own.</p>
+  </details>
+
+  <details id="alignmentControls" class="adjust">
+    <summary>Align &amp; filter</summary>
+    <div class="row">
+      <label class="field">X shift (pt)<input id="shiftX" type="number" value="0" step="0.5" min="-2000" max="2000"></label>
+      <label class="field">Y shift (pt)<input id="shiftY" type="number" value="0" step="0.5" min="-2000" max="2000"></label>
+    </div>
+    <div class="row">
+      <label class="field">Rotation (°)<input id="rotation" type="number" value="0" step="0.1" min="-180" max="180"></label>
+      <label class="field">Scale (%)<input id="scale" type="number" value="100" step="0.1" min="20" max="500"></label>
+    </div>
+    <div class="row">
+      <button id="align" disabled>Suggest shift</button>
+      <button id="unalign" disabled>Reset</button>
+    </div>
+    <label class="field">Difference threshold <span id="thresholdValue">18%</span>
+      <input id="threshold" type="range" min="3" max="60" value="18">
+    </label>
+    <label class="field">Line-edge tolerance
+      <select id="tolerance">
+        <option value="0">0 px · most sensitive</option>
+        <option value="1" selected>1 px · ignore hairline shifts</option>
+        <option value="2">2 px · ignore more</option>
+      </select>
+    </label>
+    <div class="row">
+      <button id="exclude" disabled aria-pressed="false">Ignore an area</button>
+      <button id="clearExclude" disabled>Clear areas</button>
+    </div>
+    <p class="hint" id="excludeHint">Transforms apply to B around its centre. Draw a rectangle to leave dates or title blocks out of this comparison.</p>
+  </details>
+
+  <details class="scope">
+    <summary>Scope &amp; limits</summary>
+    <p>Matching uses extracted text, a visual fingerprint and page order. Blank, repeated or heavily redrawn sheets can be ambiguous — check anything flagged. Moved sheets usually read as one removal plus one addition.</p>
+    <p>No OCR, CAD entity recognition or calibrated measurement. Annotations and form fields are outside the comparison. Limits: 150 MB per PDF, 250,000 candidate page pairs, 12 megapixels per sheet, 1,500 text lines per sheet.</p>
+    <p>Uses Mozilla PDF.js 6.4.299. Application code is MIT licensed; bundled components keep their own licences.</p>
+  </details>
+
 </aside>
-<main><div class="workspace-top"><div><div class="section-label">YOUR REVISION DETECTIVE</div><h1 id="heading">Let’s spot the plot twists.</h1></div><div class="legend"><span><i class="red"></i>Original only</span><span><i class="blue"></i>Revised only</span><span><i class="grey"></i>Shared / within tolerance</span></div></div>
-<div class="stack-stats" id="stackStats" hidden><div class="stat purple"><span>Sheet pairs</span><strong id="matchedCount">0</strong><small>content matched</small></div><div class="stat mint"><span>Added</span><strong id="addedCount">0</strong><small>new in revision B</small></div><div class="stat coral"><span>Removed</span><strong id="removedCount">0</strong><small>only in original A</small></div><div class="stat peach"><span>Review matches</span><strong id="reviewCount">0</strong><small>confirm the pairing</small></div></div>
-<div id="status" class="status" role="status" aria-live="polite">Drop the page-number juggling. Open two PDFs and compare the whole stack.</div>
-<div class="progress-track" id="progressTrack" hidden><progress id="batchProgress" max="100" value="0" aria-label="Whole-document progress"></progress><span id="progressText"></span></div>
-<div class="review-shell" id="reviewShell"><nav id="sheetPanel" class="sheet-panel" hidden aria-label="Matched sheet map"><div class="sheet-panel-head"><strong>The sheet map <span>↝</span></strong><small id="mapSummary">Every sheet, accounted for.</small><select id="sheetFilter" aria-label="Filter sheet map"><option value="all">All sheets</option><option value="Changed">Changed</option><option value="Added">Added</option><option value="Removed">Removed</option><option value="Unchanged">No differences</option><option value="review">Review matches</option><option value="Pending">Pending / errors</option></select></div><div id="sheetList"></div></nav><section class="viewer-pane" aria-label="Selected sheet comparison">
-<div class="toolbar"><div class="tabs" role="group" aria-label="Comparison view"><button data-mode="overlay" class="active">Overlay</button><button data-mode="split">Side by side</button><button data-mode="text">Text changes</button></div><div class="zoom-tools"><button id="prevRegion" aria-label="Previous region" disabled>↑</button><span id="regionPosition">—</span><button id="nextRegion" aria-label="Next region" disabled>↓</button><select id="zoom" aria-label="Zoom"><option value="fit">Fit width</option><option value="0.5">50%</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></div></div>
-<div id="stage"><div id="empty"><div class="empty-art"><div></div><div></div><span>✦</span></div><h2>A little less hunting.<br>A lot more finding.</h2><p>Choose your original and revised PDFs on the left.<br>Then compare the whole stack in one click.</p><small>Or drop both PDFs anywhere on this page.<br>Files stay in this browser. No uploads, accounts or installation.</small></div><div id="visual" hidden><div id="splitLabels" hidden><span id="splitOldLabel"></span><span id="splitNewLabel"></span></div><div id="canvasWrap"><canvas id="canvas" aria-label="PDF comparison"></canvas><canvas id="annotations" aria-label="Change region highlights"></canvas></div></div><div id="textView" hidden></div></div></section></div>
-<footer><span id="summary">Waiting for PDFs</span><span class="shortcuts"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> views · <kbd>n</kbd><kbd>p</kbd> regions · <kbd>[</kbd><kbd>]</kbd> sheets</span><span id="renderInfo">Files are held in memory only.</span></footer>
-</main></div>
+
+<main>
+
+  <div class="workspace-head">
+    <h1 id="heading">Compare two revisions</h1>
+    <div class="legend">
+      <span><i class="sw-old" aria-hidden="true"></i>Original only</span>
+      <span><i class="sw-new" aria-hidden="true"></i>Revised only</span>
+      <span><i class="sw-same" aria-hidden="true"></i>Unchanged</span>
+    </div>
+  </div>
+
+  <div class="stats" id="stackStats" hidden>
+    <div class="stat"><span>Sheet pairs</span><strong id="matchedCount">0</strong></div>
+    <div class="stat added"><span>Added</span><strong id="addedCount">0</strong></div>
+    <div class="stat removed"><span>Removed</span><strong id="removedCount">0</strong></div>
+    <div class="stat review"><span>Check match</span><strong id="reviewCount">0</strong></div>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite">Open your original and revised PDFs, then compare the whole stack in one click.</div>
+
+  <div class="progress-track" id="progressTrack" hidden>
+    <progress id="batchProgress" max="100" value="0" aria-label="Comparison progress"></progress>
+    <span id="progressText"></span>
+  </div>
+
+  <div class="review-shell" id="reviewShell">
+
+    <nav id="sheetPanel" class="sheet-panel" hidden aria-label="Sheet map">
+      <div class="sheet-panel-head">
+        <h2>Sheet map</h2>
+        <small id="mapSummary">Every sheet, accounted for.</small>
+        <select id="sheetFilter" aria-label="Filter sheet map">
+          <option value="all">All sheets</option>
+          <option value="Changed">Changed</option>
+          <option value="Added">Added</option>
+          <option value="Removed">Removed</option>
+          <option value="Unchanged">No differences</option>
+          <option value="review">Check match</option>
+          <option value="Pending">Pending / errors</option>
+        </select>
+      </div>
+      <div id="sheetList"></div>
+    </nav>
+
+    <section class="viewer-pane" id="viewerPane" aria-label="Sheet comparison">
+
+      <div class="toolbar">
+        <div class="tabs" role="group" aria-label="Comparison view">
+          <button data-mode="overlay" class="active">Overlay</button>
+          <button data-mode="split">Side by side</button>
+          <button data-mode="text">Text changes</button>
+        </div>
+        <div class="layers" id="layerGroup" role="group" aria-label="Show layers">
+          <button id="layerOld" class="layer on" aria-pressed="true"><i class="sw-old" aria-hidden="true"></i>A</button>
+          <button id="layerNew" class="layer on" aria-pressed="true"><i class="sw-new" aria-hidden="true"></i>B</button>
+        </div>
+        <div class="viewer-tools">
+          <button id="prevRegion" aria-label="Previous change region" disabled>↑</button>
+          <span id="regionPosition">—</span>
+          <button id="nextRegion" aria-label="Next change region" disabled>↓</button>
+          <select id="zoom" aria-label="Zoom">
+            <option value="fit">Fit width</option>
+            <option value="0.5">50%</option>
+            <option value="1">100%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+            <option value="3">300%</option>
+          </select>
+          <button id="fullscreen" aria-label="Full screen" title="Full screen (F)">
+            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/>
+            </svg><span>Full screen</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="stage">
+        <div id="empty">
+          <div class="empty-art" aria-hidden="true"><span></span><span></span></div>
+          <h2>Nothing to compare yet</h2>
+          <p>Choose your original and revised PDFs on the left,<br>or drop both anywhere on this page.</p>
+          <small>Files stay in this browser. No upload, account or installation.</small>
+        </div>
+        <div id="visual" hidden>
+          <div id="splitLabels" hidden><span id="splitOldLabel"></span><span id="splitNewLabel"></span></div>
+          <div id="canvasWrap">
+            <canvas id="canvas" aria-label="Sheet comparison"></canvas>
+            <canvas id="annotations" aria-label="Change regions"></canvas>
+          </div>
+        </div>
+        <div id="textView" hidden></div>
+      </div>
+
+    </section>
+  </div>
+
+  <footer>
+    <span id="summary">Waiting for PDFs</span>
+    <span class="shortcuts"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> views<em>·</em><kbd>n</kbd><kbd>p</kbd> regions<em>·</em><kbd>[</kbd><kbd>]</kbd> sheets<em>·</em><kbd>f</kbd> full screen</span>
+    <span id="renderInfo">Files are held in memory only.</span>
+  </footer>
+
+</main>
+</div>
+
 <script id="embedded-assets" type="application/json">/*ASSETS*/</script>
 <script id="embedded-worker" type="application/json">/*WORKER*/</script>
 <script>/*APP*/</script></body></html>

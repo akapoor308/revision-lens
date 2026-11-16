@@ -19,7 +19,7 @@ flowchart TD
   E --> F[Full-resolution rendering per map row]
   F --> G[Visual mask and extracted-line diff]
   G --> H[Overlay / highlighted side by side / text view]
-  G --> I[Selected-page exports and complete PDF / CSV]
+  G --> I[Overlay / side-by-side PDF and complete package]
   J[Reviewer pins] --> D
 ```
 
@@ -52,7 +52,9 @@ Pairs are flagged if similarity is below 0.76 or an alternative is within 0.045 
 
 Pixels are converted to grayscale ink. A configurable maximum-neighbourhood operation implements 0/1/2-pixel edge tolerance; because a square maximum filter is separable, it runs as one horizontal pass followed by one vertical pass rather than a full window per pixel. Ink differences beyond the chosen threshold become mask value 1 (original only) or 2 (revised only); excluded rectangles suppress visual changes there.
 
-The overlay colours mask 1 red and mask 2 blue. Unchanged/within-tolerance content is grey. `highlightSide()` uses that same mask to tint only mask 1 on the original source and only mask 2 on the revised source. It preserves other source pixels, so the split view does not invent the missing geometry on the opposite side. Region outlines are drawn in both panes for context.
+The overlay colours mask 1 red and mask 2 blue. Unchanged and within-tolerance content is grey. The side-by-side view draws the original render untouched on the left and, on the right, `highlightSide()` tinting only mask 2 onto the revised render — so the original sheet is never marked up, and all change annotation (region boxes, ignored-area rectangles) is drawn over the revised pane alone. Hiding a layer drops that pane and lets the other fill the width; in overlay view a single layer shows that document on its own.
+
+Region boxes and ignored areas are amber throughout, leaving red and blue to mean original and revised content and nothing else.
 
 Region grouping connects occupied 40-pixel tiles, retaining clusters with at least eight changed pixels. Region counts are navigation aids, not counts of real edits; the sheet map shows each changed row's region and text-change counts for the same reason. Smaller changed clusters can still contribute to pixel totals.
 
@@ -68,6 +70,6 @@ Text comparison is independent of ignored rectangles and visual sensitivity. Mat
 
 Index features and map summaries are retained in memory. Detailed canvases are replaced and released between rows rather than caching full-resolution images for a whole stack, and each page's parser data is released once its comparison is done. Replacing one of the two files keeps the other document's index. Alignment, exclusions and settings are stored per mapped row. Stop requests are checked between steps; synchronous pixel work and long renders can delay them.
 
-All-page PDF export rerenders rows sequentially using saved settings, then packages JPEG image pages into a PDF with explicit page objects and cross-reference offsets. JPEG bytes come from `canvas.toBlob`, not a base64 data URL, so a large sheet is not held twice. Output is rasterized. The 200 MB image-data limit bounds the retained image buffers. No partial PDF is saved after stopping. The sheet-map CSV states incomplete and error rows explicitly.
+Exports compose each view explicitly rather than screenshotting the canvas, so a saved page never depends on the visible tab or the layer switches. `overlayBody()`, `splitBody()` and `textBodies()` build the image for one view; `withHeader()` adds the identification band; `packImagePages()` writes JPEG pages into a PDF with explicit page objects and cross-reference offsets. Text changes are wrapped and paginated onto sheet-sized pages. JPEG bytes come from `canvas.toBlob`, not a base64 data URL, so a large sheet is not held twice. Output is rasterized, the 200 MB image-data limit bounds the retained buffers, and no partial PDF is saved after stopping. The complete package rerenders every mapped row in turn using that row's saved settings.
 
 For how your files are handled, see [Privacy](PRIVACY.md). For the day-to-day workflow, see the [user guide](USER-GUIDE.md).

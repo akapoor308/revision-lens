@@ -29,9 +29,20 @@ Page numbers and revision letters are ignored when deciding which sheets corresp
 
 **Overlay** (<kbd>1</kbd>) puts both revisions on one canvas. Original-only pixels are red, revised-only pixels blue, shared content grey. Amber boxes group nearby changed pixels; <kbd>n</kbd> and <kbd>p</kbd> jump between them. A box is a place to look, not necessarily one change.
 
-**Side by side** (<kbd>2</kbd>) shows the original on the left and the aligned revision on the right, each highlighting only its own changes, so neither pane invents content the other has. Matching region boxes appear in both panes. The two sheets share vertical position, and region navigation stays in this view.
+**Side by side** (<kbd>2</kbd>) shows the original on the left and the aligned revision on the right. The original pane is left exactly as it was drawn — no tint, no boxes, nothing added — so you can read it as the sheet it is. Every change mark lives on the revised pane: revised-only content in blue, with amber boxes around each change region. The two sheets share vertical position, and region navigation stays in this view.
 
 **Text changes** (<kbd>3</kbd>) lists added and removed extracted lines with whitespace normalized. An edited line appears as one removal plus one addition, and reordering shows up the same way. Scanned or outlined text may yield nothing — there is no OCR. Ignored areas and the sensitivity settings do not affect this view.
+
+## Layers and full screen
+
+The **A** and **B** buttons in the toolbar turn each document on or off:
+
+- In **Overlay**, switching one off shows the other document on its own — A exactly as drawn, B with its changes highlighted.
+- In **Side by side**, the hidden document's pane disappears and the remaining one fills the width.
+
+One layer always stays visible; the last one cannot be switched off. Layers affect what is on screen only — exports always contain both documents.
+
+**Full screen** (<kbd>f</kbd>, or the button beside the zoom control) expands the viewer to fill the display, taking the toolbar with it, so the tabs, layer switches, change navigation and zoom stay available. Press <kbd>Esc</kbd> or the button again to come back.
 
 ## Correct an uncertain match
 
@@ -61,16 +72,17 @@ Default quality is 144 dpi, with 100 and 200 dpi options. The 12-megapixel ceili
 
 | Button | Scope |
 |---|---|
-| Overlay PDF / PNG | The selected comparison, with file and page identifiers, the settings used, region outlines and a review warning when one applies. |
-| Text changes CSV | Extracted-line changes for the selected comparison. |
-| Whole-document summary CSV | Every map row: pairing, status, review reason, similarity, change counts, dpi and whether the run completed. |
-| All sheets comparison PDF | One page per map row, including added and removed sheets, using each row's saved settings. |
+| Overlay PDF | The sheet on screen, as one overlay page. |
+| Side by side PDF | The sheet on screen, as one side-by-side page. |
+| Complete package PDF | Every sheet in the map — overlay, side by side and text changes, three or more pages per sheet, including added and removed sheets. |
 
-Export filenames include the pages they cover, so saving several does not overwrite anything. The whole-document PDF button is enabled only when every row compared successfully. PDF output is rasterized, not vector or layered, and is not calibrated for measurement. Your original files are never modified. CSV text is quoted and formula-like prefixes are neutralized so a spreadsheet cannot execute them.
+Each page carries a header band with both file names, the pages compared, the dpi, the alignment and sensitivity settings used, and a **CHECK SHEET MATCH** warning when the pairing is flagged. Text changes are paginated onto sheet-sized pages, so a long change list simply continues onto the next page.
+
+Exports are built from the comparison itself, so what you save never depends on which layers are switched on or which tab is open. Single-sheet filenames include the pages they cover, so saving several does not overwrite anything. The complete package button is enabled only when every row compared successfully. PDF output is rasterized, not vector or layered, and is not calibrated for measurement. Your original files are never modified.
 
 ## Stop or clear
 
-**Stop after current sheet** takes effect between indexing, comparison or export steps; a single long render finishes first. Pending rows stay marked Pending, and stopping an export saves nothing partial.
+**Stop after this sheet** takes effect between indexing, comparison or export steps; a single long render finishes first. Pending rows stay marked Pending, and stopping an export saves nothing partial.
 
 **Clear session** releases the loaded PDFs, the map, the pins and the settings. Close or reload the tab to release whatever the browser still holds.
 
@@ -81,9 +93,10 @@ Export filenames include the pages they cover, so saving several does not overwr
 | <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | Overlay, side by side, text changes |
 | <kbd>n</kbd> / <kbd>p</kbd> | Next / previous change region |
 | <kbd>[</kbd> / <kbd>]</kbd> | Previous / next sheet in the map |
+| <kbd>f</kbd> | Enter or leave full screen |
 
 Shortcuts are ignored while a text field or dropdown has focus.
 
 ## Limits
 
-150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per whole-document PDF export. Split an exceptionally large stack. Only local, unencrypted PDFs are supported — a password-protected file is reported as such. Annotations, comments and interactive form fields are outside the comparison.
+150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per package export. Split an exceptionally large stack. Only local, unencrypted PDFs are supported — a password-protected file is reported as such. Annotations, comments and interactive form fields are outside the comparison.

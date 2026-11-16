@@ -25,11 +25,13 @@ That is the whole workflow. You never select page numbers by hand, and you can d
 | Automatic page matching | Pairs sheets by their text, a visual fingerprint and document order, so an inserted sheet shifts the rest instead of misaligning everything. |
 | Added and removed sheets | Get their own rows in the sheet map rather than being silently paired with something else. |
 | Coloured overlay | Red marks original-only pixels, blue marks revised-only pixels, grey is shared content. |
-| Highlighted side by side | Original-only changes in red on the left, revised-only changes in blue on the right, with matching region boxes in both panes. |
+| Side by side | The original exactly as it was drawn on the left; the revised sheet with its changes highlighted on the right. All change marking stays on the revised side. |
 | Text changes | Lists added and removed extracted lines for the selected sheet pair. |
 | Match corrections | Pin the correct pairing for an uncertain sheet and the whole stack is rematched around it. |
+| Layer switches | Turn the original or the revised document off to study one on its own, in either view. |
+| Full screen | Expand the viewer to the whole display, toolbar included. |
 | Alignment and filters | Shift, rotate, scale, suggest a shift, tune sensitivity and ignore rectangles such as title blocks. |
-| Exports | Overlay PDF/PNG and text CSV for one sheet; a summary CSV and a multi-page comparison PDF for the whole document. |
+| Exports | Overlay PDF and side-by-side PDF for one sheet, or a complete package PDF covering every sheet. |
 | Fully offline | The PDF renderer, fonts, character maps and decoders are embedded in the one HTML file. |
 
 For example, if a 19-sheet set gains a sheet at revised page 5, the map shows an added page 5, pairs original 5 with revised 6, and continues through original 19 → revised 20. Two documents with the same page count can still contain both an insertion and a deletion, and the map shows both.
@@ -37,10 +39,10 @@ For example, if a 19-sheet set gains a sheet at revised page 5, the map shows an
 ## Three ways to look at a sheet
 
 - **Overlay** — both revisions on one canvas, with nearby changed pixels grouped into numbered regions you can step through.
-- **Side by side** — the two sources next to each other, each highlighting only its own changes, so nothing is invented on the opposite side.
+- **Side by side** — the original on the left, untouched, and the revised sheet on the right with its changes highlighted and boxed. Switch either document off to fill the width with the other.
 - **Text changes** — added and removed extracted lines, with whitespace normalized.
 
-Keyboard: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view, <kbd>n</kbd> and <kbd>p</kbd> step through change regions, <kbd>[</kbd> and <kbd>]</kbd> step through the sheet map.
+Keyboard: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view, <kbd>n</kbd> and <kbd>p</kbd> step through change regions, <kbd>[</kbd> and <kbd>]</kbd> step through the sheet map, <kbd>f</kbd> toggles full screen.
 
 ## Privacy
 
@@ -55,8 +57,8 @@ Matching is a heuristic, and the app is honest about where it is unsure:
 - Similarity percentages are scores, not probabilities.
 - Grayscale pixel comparison can miss a colour-only change of similar brightness. High tolerance, low render quality or a large ignored area can hide a small real change.
 - Annotations, comments and interactive form fields are outside the comparison. No OCR, CAD entity recognition, table reconstruction, calibrated measurement or vector editing.
-- Exported PDFs are rasterized images, not vector layers, and are not calibrated for measurement.
-- Limits: 150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per whole-document PDF export.
+- Exported PDFs are rasterized images of what is on screen, not vector layers, and are not calibrated for measurement.
+- Limits: 150 MB per PDF, 250,000 candidate page pairs per run, 12 megapixels per rendered sheet, 1,500 extracted text lines per sheet, 200 MB of image data per package export.
 - A very large stack can make the browser tab unresponsive for a while. **Stop** takes effect between steps, not in the middle of a long render.
 
 ## Build and test

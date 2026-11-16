@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0
+
+### Viewing
+- **Full screen.** A button beside the zoom control (or `f`) expands the viewer to fill the display. The toolbar comes with it, so the tabs, layer switches, change navigation and zoom all stay to hand.
+- **Layer switches.** `A` and `B` buttons in the toolbar turn each document on or off. In overlay view a single layer shows that document on its own; in side-by-side view the hidden document's pane disappears and the remaining one fills the width. One layer always stays visible.
+- **The original is never marked up.** In side-by-side view the left pane is now the original sheet exactly as it was drawn — no red tint, no change boxes, no ignored-area rectangles. Every change mark lives on the revised pane.
+- Change-region boxes are amber everywhere, so red and blue stay reserved for original and revised content.
+
+### Exports
+- Replaced the five export buttons with three: **Overlay PDF** and **Side by side PDF** for the sheet on screen, and **Complete package PDF** for the whole document — overlay, side-by-side and text-changes pages for every mapped sheet, including added and removed ones.
+- Exports are built from the comparison itself, so what you save never depends on which layers are switched on or which tab is open.
+- Removed Overlay PNG, Text changes CSV, Whole-document summary CSV and All sheets comparison PDF.
+
+### Interface
+- Rebuilt the interface on a document-grey and scan-blue palette with a single type scale. The workspace is deliberately achromatic so the red and blue change marks are the most saturated thing on screen.
+- Numbered the control rail — choose revisions, compare, save results — with advanced pairing and alignment controls tucked into collapsed sections.
+- Merged the three stylesheets into one, calmed the copy, and gave the sheet map, toolbar and status area a consistent rhythm.
+
 ## 0.4.0
 
 ### Offline guarantee

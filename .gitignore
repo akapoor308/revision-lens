@@ -7,7 +7,7 @@ coverage/
 /*-results.json
 /export-test.*
 /batch-export.pdf
-/batch-map.csv
 npm-debug.log*
 .DS_Store
 Desktop.ini
+/export-test-split.pdf
