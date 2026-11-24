@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Use **Previous page** and **Next page** in the fullscreen toolbar to browse sheets in the current sheet-map filter.
+
 ## 0.5.0
 
 ### Viewing

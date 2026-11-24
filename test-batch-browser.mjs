@@ -32,6 +32,16 @@ try{
   await page.locator('.sheet-row[data-old="5"][data-new="6"]').click();
   await page.waitForFunction(()=>document.querySelector('#heading').textContent==='Original 5 → Revised 6');
   await page.screenshot({path:'batch-paired.png',fullPage:true});
+  const previousPage=page.getByRole('button',{name:'Previous page'}),nextPage=page.getByRole('button',{name:'Next page'});
+  assert.equal(await nextPage.isVisible(),false);
+  await page.locator('#fullscreen').click();
+  for(const [button,heading] of [[nextPage,'Original 6 → Revised 7'],[previousPage,'Original 5 → Revised 6'],[previousPage,'A new sheet joins the stack.']]){
+    await button.click();
+    await page.waitForFunction(text=>document.querySelector('#heading').textContent===text,heading);
+    assert.equal(await page.locator('#viewerPane').evaluate(pane=>pane===document.fullscreenElement),true);
+  }
+  await page.locator('#fullscreen').click();
+  await page.waitForFunction(()=>!document.fullscreenElement);
   // The complete package carries three pages per mapped sheet.
   const pdfWait=page.waitForEvent('download',{timeout:240000});await page.locator('#savePackage').click();
   const pdf=await pdfWait;await pdf.saveAs('batch-export.pdf');

@@ -54,6 +54,7 @@ function lock(busy){
   $('cancel').disabled=state.cancelled;
   $('sheetFilter').disabled=busy;
   for(const b of document.querySelectorAll('.sheet-row'))b.disabled=busy;
+  syncPageNavigation();
   for(const id of ['align','unalign','exclude','clearExclude','savePdf','saveSplitPdf']) $(id).disabled=busy||!result;
   for(const id of ['prevRegion','nextRegion']) $(id).disabled=busy||!state.result?.regions.length;
   $('reset').disabled=busy;
@@ -543,6 +544,7 @@ function renderMap(){
   }
   if(!list.childElementCount){const p=document.createElement('p');p.className='no-filter-results';p.textContent='No sheets in this filter. A clear little corner!';list.append(p);}
   list.scrollTop=scroll;
+  syncPageNavigation();
 }
 $('sheetFilter').onchange=renderMap;
 function progress(value,text){$('progressTrack').hidden=false;$('batchProgress').value=value;$('progressText').textContent=text;}
@@ -672,6 +674,12 @@ $('layerOld').onclick=()=>setLayer('old',!state.layers.old);
 $('layerNew').onclick=()=>setLayer('new',!state.layers.new);
 
 // ------------------------------------------------------------- full screen
+function syncPageNavigation(){
+  const disabled=state.busy||!$('sheetList').querySelector('.sheet-row:not([data-row="'+state.activeRow+'"])');
+  $('prevPage').disabled=$('nextPage').disabled=disabled;
+}
+$('prevPage').onclick=()=>stepRow(-1);
+$('nextPage').onclick=()=>stepRow(1);
 function toggleFullscreen(){
   if(document.fullscreenElement)document.exitFullscreen();
   else $('viewerPane').requestFullscreen?.().catch(e=>status('Full screen was refused: '+e.message,'error'));
