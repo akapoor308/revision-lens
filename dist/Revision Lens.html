@@ -221,8 +221,9 @@ h1{font-size:20px}
 .layer i{opacity:.3;transition:opacity .13s}
 .layer.on{color:var(--ink-2);background:#f1f4f7;border-color:#cbd5e1}
 .layer.on i{opacity:1}
+.page-nav{display:none;gap:4px}
 .viewer-tools{display:flex;align-items:center;gap:6px;margin-left:auto}
-.viewer-tools button{padding:6px 8px}
+.page-nav button,.viewer-tools button{padding:6px 8px}
 .viewer-tools select{width:102px;font-size:11.5px;padding:6px 7px}
 #regionPosition{font-size:11px;color:var(--muted);min-width:42px;text-align:center}
 #fullscreen{display:flex;align-items:center;gap:6px;font-size:11.5px}
@@ -281,7 +282,8 @@ kbd{
 
 /* ------------------------------------------------------------ full screen */
 .viewer-pane:fullscreen{border-radius:0;border:0;background:var(--surface)}
-.viewer-pane:fullscreen .toolbar{padding:10px 14px}
+.viewer-pane:fullscreen .toolbar{padding:10px 14px;flex-wrap:wrap}
+.viewer-pane:fullscreen .page-nav{display:flex}
 .viewer-pane:fullscreen #stage{background:#e7ebf0}
 .viewer-pane:fullscreen #visual{padding:26px}
 body.is-fullscreen .sheet-panel{display:none}
@@ -468,6 +470,10 @@ body.is-fullscreen .sheet-panel{display:none}
         <div class="layers" id="layerGroup" role="group" aria-label="Show layers">
           <button id="layerOld" class="layer on" aria-pressed="true"><i class="sw-old" aria-hidden="true"></i>A</button>
           <button id="layerNew" class="layer on" aria-pressed="true"><i class="sw-new" aria-hidden="true"></i>B</button>
+        </div>
+        <div class="page-nav" role="group" aria-label="Page navigation">
+          <button id="prevPage" title="Previous page ([)" disabled>Previous page</button>
+          <button id="nextPage" title="Next page (])" disabled>Next page</button>
         </div>
         <div class="viewer-tools">
           <button id="prevRegion" aria-label="Previous change region" disabled>↑</button>
@@ -28631,6 +28637,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     $("cancel").disabled = state.cancelled;
     $("sheetFilter").disabled = busy;
     for (const b of document.querySelectorAll(".sheet-row")) b.disabled = busy;
+    syncPageNavigation();
     for (const id of ["align", "unalign", "exclude", "clearExclude", "savePdf", "saveSplitPdf"]) $(id).disabled = busy || !result;
     for (const id of ["prevRegion", "nextRegion"]) $(id).disabled = busy || !state.result?.regions.length;
     $("reset").disabled = busy;
@@ -29451,6 +29458,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       list.append(p);
     }
     list.scrollTop = scroll;
+    syncPageNavigation();
   }
   $("sheetFilter").onchange = renderMap;
   function progress(value, text) {
@@ -29654,6 +29662,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
   }
   $("layerOld").onclick = () => setLayer("old", !state.layers.old);
   $("layerNew").onclick = () => setLayer("new", !state.layers.new);
+  function syncPageNavigation() {
+    const disabled = state.busy || !$("sheetList").querySelector('.sheet-row:not([data-row="' + state.activeRow + '"])');
+    $("prevPage").disabled = $("nextPage").disabled = disabled;
+  }
+  $("prevPage").onclick = () => stepRow(-1);
+  $("nextPage").onclick = () => stepRow(1);
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen();
     else $("viewerPane").requestFullscreen?.().catch((e) => status("Full screen was refused: " + e.message, "error"));
